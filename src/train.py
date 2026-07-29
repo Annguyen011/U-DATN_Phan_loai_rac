@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 # ── 1. Kiểm tra ảnh ────────────────────────────────────────────────────────
-BASE_DIR = Path(__file__).parent
+BASE_DIR = Path(__file__).parent.parent          # thư mục gốc dự án
 DATASET_DIR = BASE_DIR / "datasets"
 CLASSES = ["kim_loai", "nhua", "giay", "khong_phai_rac"]
 
