@@ -1,7 +1,9 @@
-description: Ultralytics YOLO11n model trained on /root/data/data_set_an_1/data.yaml
-author: Ultralytics
-date: '2026-04-15T08:35:06.963655'
-version: 8.3.228
+# TrashSorter Model Metadata
+# Được tạo tự động sau khi train xong
+description: YOLOv11n trained on TrashSorter dataset (KIM_LOAI, NHUA, GIAY, KHONG_PHAI_RAC)
+author: Annguyen011
+date: '2026-07-29'
+version: 8.4.104
 license: AGPL-3.0 License (https://ultralytics.com/license)
 docs: https://docs.ultralytics.com
 stride: 32
