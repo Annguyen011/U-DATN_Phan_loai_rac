@@ -9,11 +9,15 @@ from enum import Enum
 import time
 
 
-class FruitColor(str, Enum):
-    GREEN   = "GREEN"
-    RED     = "RED"
-    YELLOW  = "YELLOW"
-    UNKNOWN = "UNKNOWN"
+class TrashType(str, Enum):
+    KIM_LOAI       = "KIM_LOAI"
+    NHUA           = "NHUA"
+    GIAY           = "GIAY"
+    KHONG_PHAI_RAC = "KHONG_PHAI_RAC"
+    UNKNOWN        = "UNKNOWN"
+
+# Alias for backward compatibility during migration
+FruitColor = TrashType
 
 
 class SortAction(str, Enum):
@@ -27,16 +31,21 @@ class SortAction(str, Enum):
 @dataclass
 class DetectionResult:
     """Thread 1 → Thread 2 qua Shared Queue."""
-    fruit_color:  FruitColor
+    trash_type:   TrashType
     confidence:   float
     timestamp_ms: float    = field(default_factory=lambda: time.monotonic() * 1000)
     frame_id:     int      = 0
     bbox:         tuple    = field(default_factory=tuple)
     action:       SortAction = SortAction.REJECT
 
+    @property
+    def fruit_color(self) -> TrashType:
+        """Backward compatibility alias."""
+        return self.trash_type
+
     def __repr__(self) -> str:
         return (
-            f"DetectionResult({self.fruit_color.value} "
+            f"DetectionResult({self.trash_type.value} "
             f"conf={self.confidence:.2f} action={self.action.value})"
         )
 
@@ -44,9 +53,14 @@ class DetectionResult:
 @dataclass
 class SortEvent:
     """Ghi vào SQLite sau khi servo đã kích."""
-    fruit_color:  str
+    trash_type:   str
     confidence:   float
     action:       str
     sorted_at_ms: float = field(default_factory=lambda: time.time() * 1000)
     station:      int   = 1
     is_reject:    bool  = False
+
+    @property
+    def fruit_color(self) -> str:
+        """Backward compatibility alias."""
+        return self.trash_type

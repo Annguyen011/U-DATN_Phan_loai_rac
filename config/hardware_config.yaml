@@ -8,7 +8,7 @@
 # SYSTEM
 # ---------------------------------------------------------------------------
 system:
-  name: "FruitSorter v2.0"
+  name: "TrashSorter v1.0"
   mode: "production"        # "production" | "debug" | "simulation"
   log_level: "INFO"
   log_file: "logs/sorter.log"
@@ -110,24 +110,27 @@ model:
     iou_nms: 0.45            # NMS overlap threshold
     min_bbox_area: 1500      # px² — lọc nhiễu bbox quá nhỏ
 
-  # Nhãn lớp — thứ tự PHẢI khớp với model đã train
+   # Nhãn lớp — thứ tự PHẢI khớp với model đã train
   labels:
-    0: "GREEN"
-    1: "RED"
-    2: "YELLOW"
+    0: "KIM_LOAI"
+    1: "NHUA"
+    2: "GIAY"
+    3: "KHONG_PHAI_RAC"
 
   # Màu vẽ bbox debug (BGR)
   label_colors:
-    GREEN:  [0, 200, 50]
-    RED:    [0, 50, 220]
-    YELLOW: [0, 210, 255]
+    KIM_LOAI:        [120, 120, 120]
+    NHUA:            [200, 150, 0]
+    GIAY:            [0, 180, 180]
+    KHONG_PHAI_RAC:  [50, 50, 200]
 
   # Mapping nhãn → servo action
   routing:
-    GREEN:   { servo: 1, direction: "left"  }
-    RED:     { servo: 2, direction: "left"  }
-    YELLOW:  { servo: 2, direction: "right" }
-    UNKNOWN: { servo: null, direction: "reject" }
+    KIM_LOAI:        { servo: 1, direction: "left"  }
+    NHUA:            { servo: 2, direction: "left"  }
+    GIAY:            { servo: 2, direction: "right" }
+    KHONG_PHAI_RAC:  { servo: null, direction: "reject" }
+    UNKNOWN:         { servo: null, direction: "reject" }
 
 # ---------------------------------------------------------------------------
 # DATABASE — SQLite

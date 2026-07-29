@@ -20,7 +20,7 @@ from typing import Optional
 import cv2
 import numpy as np
 
-from shared.detection_result import DetectionResult, FruitColor, SortAction
+from shared.detection_result import DetectionResult, TrashType, SortAction
 from web.flask_app import push_frame, push_detection_event  # ← THÊM
 
 log = logging.getLogger(__name__)
@@ -279,13 +279,13 @@ class FruitDetector(threading.Thread):
 
     def _build_result(self, det: dict) -> Optional[DetectionResult]:
         try:
-            color = FruitColor(det["label"])
+            trash = TrashType(det["label"])
         except ValueError:
-            color = FruitColor.UNKNOWN
+            trash = TrashType.UNKNOWN
         route  = self._routing.get(det["label"], self._routing.get("UNKNOWN", {}))
         action = _resolve_action(route)
         return DetectionResult(
-            fruit_color=color,
+            trash_type=trash,
             confidence=det["confidence"],
             frame_id=self._frame_id,
             bbox=det["bbox"],
@@ -296,7 +296,7 @@ class FruitDetector(threading.Thread):
         import random
         if random.random() > 0.12:
             return []
-        label = random.choice(["GREEN", "RED", "YELLOW"])
+        label = random.choice(["KIM_LOAI", "NHUA", "GIAY", "KHONG_PHAI_RAC"])
         return [{"label": label, "confidence": round(random.uniform(0.70, 0.97), 2),
                  "bbox": (80, 55, 80, 80)}]
 

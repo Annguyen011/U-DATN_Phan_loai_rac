@@ -1,4 +1,4 @@
-/* static/css/dashboard.css — FruitSorter Industrial Dark UI */
+/* static/css/dashboard.css — TrashSorter Industrial Dark UI */
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -12,12 +12,14 @@
   --text0:     #f4f4f5;
   --text1:     #a1a1aa;
   --text2:     #52525b;
-  --green:     #22c55e;
-  --green-dim: #16a34a;
-  --red:       #ef4444;
-  --red-dim:   #b91c1c;
-  --yellow:    #eab308;
-  --yellow-dim:#a16207;
+  --kimloai:    #9ca3af;
+  --kimloai-dim:#6b7280;
+  --nhua:       #f59e0b;
+  --nhua-dim:   #d97706;
+  --giay:       #06b6d4;
+  --giay-dim:   #0891b2;
+  --khongphairac:#6366f1;
+  --khongphairac-dim:#4f46e5;
   --accent:    #6366f1;
   --accent2:   #818cf8;
   --mono:      'JetBrains Mono', 'Courier New', monospace;
@@ -70,7 +72,7 @@ body::after {
   font-weight: 800;
   letter-spacing: -.5px;
 }
-.accent { color: var(--green); }
+.accent { color: var(--nhua); }
 .topbar__tag {
   font-size: 10px;
   letter-spacing: 1.2px;
@@ -89,8 +91,8 @@ body::after {
   transition: background .3s;
   flex-shrink: 0;
 }
-.status-dot.online  { background: var(--green); box-shadow: 0 0 6px var(--green); animation: blink 2s infinite; }
-.status-dot.offline { background: var(--red); }
+.status-dot.online  { background: var(--nhua); box-shadow: 0 0 6px var(--nhua); animation: blink 2s infinite; }
+.status-dot.offline { background: var(--red-dim); }
 .status-label { font-size: 11px; color: var(--text2); margin-right: 16px; }
 .topbar__clock { font-size: 11px; color: var(--text2); }
 
@@ -132,14 +134,16 @@ body::after {
   font-size: 11px;
 }
 .mini-stat__dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
-.mini-stat.green  .mini-stat__dot  { background: var(--green); }
-.mini-stat.red    .mini-stat__dot  { background: var(--red); }
-.mini-stat.yellow .mini-stat__dot  { background: var(--yellow); }
+.mini-stat.kim-loai       .mini-stat__dot { background: var(--kimloai); }
+.mini-stat.nhua           .mini-stat__dot { background: var(--nhua); }
+.mini-stat.giay           .mini-stat__dot { background: var(--giay); }
+.mini-stat.khong-phai-rac .mini-stat__dot { background: var(--khongphairac); }
 .mini-stat__name { flex: 1; color: var(--text1); }
 .mini-stat__val  { font-weight: 600; font-size: 13px; }
-.mini-stat.green  .mini-stat__val  { color: var(--green); }
-.mini-stat.red    .mini-stat__val  { color: var(--red); }
-.mini-stat.yellow .mini-stat__val  { color: var(--yellow); }
+.mini-stat.kim-loai       .mini-stat__val { color: var(--kimloai); }
+.mini-stat.nhua           .mini-stat__val { color: var(--nhua); }
+.mini-stat.giay           .mini-stat__val { color: var(--giay); }
+.mini-stat.khong-phai-rac .mini-stat__val { color: var(--khongphairac); }
 
 /* ── Main canvas ─────────────────────────────────────────────────── */
 .main {
@@ -170,7 +174,7 @@ body::after {
 .sec-header__tag  { font-size: 10px; color: var(--text2); white-space: nowrap; }
 
 /* ── Stat cards ──────────────────────────────────────────────────── */
-.stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
 
 .stat-card {
   background: var(--bg1);
@@ -184,25 +188,28 @@ body::after {
 .stat-card::before {
   content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
 }
-.stat-card.green::before  { background: var(--green); }
-.stat-card.red::before    { background: var(--red); }
-.stat-card.yellow::before { background: var(--yellow); }
-.stat-card.total::before  { background: var(--accent2); }
-.stat-card.green:hover  { border-color: var(--green-dim); box-shadow: 0 0 18px rgba(34,197,94,.12); }
-.stat-card.red:hover    { border-color: var(--red-dim);   box-shadow: 0 0 18px rgba(239,68,68,.12); }
-.stat-card.yellow:hover { border-color: var(--yellow-dim);box-shadow: 0 0 18px rgba(234,179,8,.12); }
+.stat-card.kim-loai::before        { background: var(--kimloai); }
+.stat-card.nhua::before             { background: var(--nhua); }
+.stat-card.giay::before             { background: var(--giay); }
+.stat-card.khong-phai-rac::before   { background: var(--khongphairac); }
+.stat-card.total::before            { background: var(--accent2); }
+.stat-card.kim-loai:hover        { border-color: var(--kimloai-dim); box-shadow: 0 0 18px rgba(156,163,175,.12); }
+.stat-card.nhua:hover            { border-color: var(--nhua-dim);   box-shadow: 0 0 18px rgba(245,158,11,.12); }
+.stat-card.giay:hover            { border-color: var(--giay-dim);   box-shadow: 0 0 18px rgba(6,182,212,.12); }
+.stat-card.khong-phai-rac:hover  { border-color: var(--khongphairac-dim); box-shadow: 0 0 18px rgba(99,102,241,.12); }
 
 .stat-card__label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--text2); margin-bottom: 8px; }
 .stat-card__value {
   font-family: var(--display); font-size: 38px; font-weight: 800; line-height: 1;
   transition: transform .2s;
 }
-.stat-card.green  .stat-card__value { color: var(--green); }
-.stat-card.red    .stat-card__value { color: var(--red); }
-.stat-card.yellow .stat-card__value { color: var(--yellow); }
-.stat-card.total  .stat-card__value { color: var(--text0); }
+.stat-card.kim-loai        .stat-card__value { color: var(--kimloai); }
+.stat-card.nhua             .stat-card__value { color: var(--nhua); }
+.stat-card.giay             .stat-card__value { color: var(--giay); }
+.stat-card.khong-phai-rac   .stat-card__value { color: var(--khongphairac); }
+.stat-card.total            .stat-card__value { color: var(--text0); }
 .stat-card__sub { font-size: 10px; color: var(--text2); margin-top: 5px; }
-.stat-card__sub.up { color: var(--green); }
+.stat-card__sub.up { color: var(--nhua); }
 
 @keyframes bump { 0%{transform:scale(1)} 40%{transform:scale(1.1)} 100%{transform:scale(1)} }
 .bumping { animation: bump .22s ease-out; }
@@ -219,7 +226,6 @@ body::after {
 /* ── Camera stream ───────────────────────────────────────────────── */
 .camera-card { padding-bottom: 14px; }
 
-/* Camera badges in header */
 .cam-badges { display: flex; align-items: center; gap: 6px; }
 .cam-badge {
   font-size: 9px;
@@ -238,9 +244,10 @@ body::after {
   color: var(--accent2);
   background: rgba(99,102,241,.1);
 }
-.cam-badge--detect.green  { border-color: var(--green);  color: var(--green);  background: rgba(34,197,94,.1); }
-.cam-badge--detect.red    { border-color: var(--red);    color: var(--red);    background: rgba(239,68,68,.1); }
-.cam-badge--detect.yellow { border-color: var(--yellow); color: var(--yellow); background: rgba(234,179,8,.1); }
+.cam-badge--detect.kim_loai        { border-color: var(--kimloai);  color: var(--kimloai);  background: rgba(156,163,175,.1); }
+.cam-badge--detect.nhua            { border-color: var(--nhua);    color: var(--nhua);    background: rgba(245,158,11,.1); }
+.cam-badge--detect.giay            { border-color: var(--giay);    color: var(--giay);    background: rgba(6,182,212,.1); }
+.cam-badge--detect.khong_phai_rac  { border-color: var(--khongphairac); color: var(--khongphairac); background: rgba(99,102,241,.1); }
 
 /* Video wrapper */
 .cam-wrap {
@@ -275,7 +282,7 @@ body::after {
 .cam-offline__text { font-size: 12px; color: var(--text1); font-family: var(--mono); }
 .cam-offline__sub  { font-size: 10px; color: var(--text2); }
 
-/* Detection overlay — hiển thị màu và confidence trên góc trái dưới */
+/* Detection overlay */
 .cam-det-overlay {
   position: absolute;
   bottom: 10px; left: 10px;
@@ -292,15 +299,16 @@ body::after {
   font-weight: 600;
   letter-spacing: 1px;
 }
-.cam-det-label.GREEN  { color: var(--green); }
-.cam-det-label.RED    { color: var(--red); }
-.cam-det-label.YELLOW { color: var(--yellow); }
+.cam-det-label.kim_loai        { color: var(--kimloai); }
+.cam-det-label.nhua            { color: var(--nhua); }
+.cam-det-label.giay            { color: var(--giay); }
+.cam-det-label.khong_phai_rac  { color: var(--khongphairac); }
 .cam-det-conf {
   font-size: 10px;
   color: var(--text2);
 }
 
-/* LIVE indicator — góc phải trên */
+/* LIVE indicator */
 .cam-live {
   position: absolute;
   top: 10px; right: 10px;
@@ -314,7 +322,7 @@ body::after {
   border-radius: 3px;
   padding: 3px 7px;
 }
-.cam-live.active { color: var(--red); border-color: var(--red); }
+.cam-live.active { color: var(--red-dim); border-color: var(--red-dim); }
 .cam-live__dot {
   width: 6px; height: 6px;
   border-radius: 50%;
@@ -322,7 +330,7 @@ body::after {
   flex-shrink: 0;
 }
 .cam-live.active .cam-live__dot {
-  background: var(--red);
+  background: var(--red-dim);
   animation: blink .8s infinite;
 }
 
@@ -378,10 +386,11 @@ body::after {
 @keyframes slide-in { from { opacity:0; transform:translateX(-6px); } to { opacity:1; transform:translateX(0); } }
 
 .log-entry__time   { width: 72px; flex-shrink: 0; }
-.log-entry__color  { width: 72px; font-weight: 600; flex-shrink: 0; }
-.log-entry__color.GREEN  { color: var(--green); }
-.log-entry__color.RED    { color: var(--red); }
-.log-entry__color.YELLOW { color: var(--yellow); }
+.log-entry__color  { width: 90px; font-weight: 600; flex-shrink: 0; }
+.log-entry__color.KIM_LOAI        { color: var(--kimloai); }
+.log-entry__color.NHUA            { color: var(--nhua); }
+.log-entry__color.GIAY            { color: var(--giay); }
+.log-entry__color.KHONG_PHAI_RAC  { color: var(--khongphairac); }
 .log-entry__conf   { width: 64px; flex-shrink: 0; }
 .log-entry__action { flex: 1; color: var(--accent2); font-size: 10px; }
 .log-entry__station{ width: 60px; text-align: right; flex-shrink: 0; }

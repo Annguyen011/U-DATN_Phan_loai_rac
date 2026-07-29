@@ -18,7 +18,7 @@ import time
 from collections import deque
 
 from drivers.serial_link import SerialLink
-from shared.detection_result import DetectionResult, SortAction
+from shared.detection_result import DetectionResult, SortAction, TrashType
 from shared.serial_protocol import cmd_sort, parse_response, is_ir_trigger
 
 log = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ class SortController(threading.Thread):
     def _dispatch(self, sensor_id: int, item: DetectionResult) -> None:
         if item.action == SortAction.REJECT:
             log.info(f"IR{sensor_id}: {item.fruit_color.value} → REJECT")
-            self._push_event(item, sensor_id, is_reject=True)
+            self._push_event(item, sensor_id, is_reject=True, trash_label=item.trash_type.value)
             return
 
         parts     = item.action.value.split("_")   # "SERVO1_LEFT" → ["SERVO1","LEFT"]
@@ -113,19 +113,19 @@ class SortController(threading.Thread):
             f"SERVO{servo_id} {direction.upper()} "
             f"[conf={item.confidence:.2f}] [{status}]"
         )
-        self._push_event(item, sensor_id, is_reject=False)
+        self._push_event(item, sensor_id, is_reject=False, trash_label=item.trash_type.value)
 
         # Cập nhật live counter cho dashboard
         from web.flask_app import update_live_count
-        update_live_count(item.fruit_color.value, is_reject=False)
+        update_live_count(item.trash_type.value, is_reject=False)
 
     def _push_event(
-        self, item: DetectionResult, station: int, is_reject: bool
+        self, item: DetectionResult, station: int, is_reject: bool, trash_label: str = ""
     ) -> None:
         from shared.detection_result import SortEvent
         self._db_queue.append(
             SortEvent(
-                fruit_color=item.fruit_color.value,
+                trash_type=trash_label or item.trash_type.value,
                 confidence=item.confidence,
                 action=item.action.value,
                 station=station,

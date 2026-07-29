@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FruitSorter — Dashboard</title>
+<title>TrashSorter — Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
@@ -15,8 +15,8 @@
 
   <!-- ── Topbar ─────────────────────────────────────────────────── -->
   <header class="topbar">
-    <div class="topbar__logo">Fruit<span class="accent">Sorter</span></div>
-    <div class="topbar__tag">v2.0 · RPi4 + Arduino</div>
+    <div class="topbar__logo">Trash<span class="accent">Sorter</span></div>
+    <div class="topbar__tag">v1.0 · RPi4 + Arduino</div>
     <div class="topbar__spacer"></div>
     <span class="status-dot" id="ws-dot"></span>
     <span class="status-label" id="ws-label">Connecting…</span>
@@ -51,20 +51,25 @@
 
     <div class="sidebar__section" style="margin-top:16px">Live count</div>
     <div class="sidebar__counters">
-      <div class="mini-stat green">
+      <div class="mini-stat kim-loai">
         <span class="mini-stat__dot"></span>
-        <span class="mini-stat__name">Green</span>
-        <span class="mini-stat__val" id="sb-green">0</span>
+        <span class="mini-stat__name">Kim Loại</span>
+        <span class="mini-stat__val" id="sb-kimloai">0</span>
       </div>
-      <div class="mini-stat red">
+      <div class="mini-stat nhua">
         <span class="mini-stat__dot"></span>
-        <span class="mini-stat__name">Red</span>
-        <span class="mini-stat__val" id="sb-red">0</span>
+        <span class="mini-stat__name">Nhựa</span>
+        <span class="mini-stat__val" id="sb-nhua">0</span>
       </div>
-      <div class="mini-stat yellow">
+      <div class="mini-stat giay">
         <span class="mini-stat__dot"></span>
-        <span class="mini-stat__name">Yellow</span>
-        <span class="mini-stat__val" id="sb-yellow">0</span>
+        <span class="mini-stat__name">Giấy</span>
+        <span class="mini-stat__val" id="sb-giay">0</span>
+      </div>
+      <div class="mini-stat khong-phai-rac">
+        <span class="mini-stat__dot"></span>
+        <span class="mini-stat__name">Ko Phải Rác</span>
+        <span class="mini-stat__val" id="sb-khongphairac">0</span>
       </div>
       <div class="mini-stat" style="border-top:1px solid var(--border);margin-top:8px;padding-top:10px">
         <span class="mini-stat__dot" style="background:var(--text2)"></span>
@@ -85,20 +90,25 @@
         <span class="sec-header__tag" id="last-update">—</span>
       </div>
       <div class="stats-row">
-        <div class="stat-card green">
-          <div class="stat-card__label">Green</div>
-          <div class="stat-card__value" id="cnt-green">0</div>
-          <div class="stat-card__sub" id="sub-green">—</div>
+        <div class="stat-card kim-loai">
+          <div class="stat-card__label">Kim Loại</div>
+          <div class="stat-card__value" id="cnt-kimloai">0</div>
+          <div class="stat-card__sub" id="sub-kimloai">—</div>
         </div>
-        <div class="stat-card red">
-          <div class="stat-card__label">Red</div>
-          <div class="stat-card__value" id="cnt-red">0</div>
-          <div class="stat-card__sub" id="sub-red">—</div>
+        <div class="stat-card nhua">
+          <div class="stat-card__label">Nhựa</div>
+          <div class="stat-card__value" id="cnt-nhua">0</div>
+          <div class="stat-card__sub" id="sub-nhua">—</div>
         </div>
-        <div class="stat-card yellow">
-          <div class="stat-card__label">Yellow</div>
-          <div class="stat-card__value" id="cnt-yellow">0</div>
-          <div class="stat-card__sub" id="sub-yellow">—</div>
+        <div class="stat-card giay">
+          <div class="stat-card__label">Giấy</div>
+          <div class="stat-card__value" id="cnt-giay">0</div>
+          <div class="stat-card__sub" id="sub-giay">—</div>
+        </div>
+        <div class="stat-card khong-phai-rac">
+          <div class="stat-card__label">Ko Phải Rác</div>
+          <div class="stat-card__value" id="cnt-khongphairac">0</div>
+          <div class="stat-card__sub" id="sub-khongphairac">—</div>
         </div>
         <div class="stat-card total">
           <div class="stat-card__label">Total</div>
@@ -108,7 +118,7 @@
       </div>
     </section>
 
-    <!-- Camera stream + Donut (thay thế throughput chart + giữ donut) -->
+    <!-- Camera stream + Donut -->
     <section class="charts-row">
 
       <!-- Camera stream panel -->
@@ -142,9 +152,9 @@
             <span class="cam-offline__sub">Kiểm tra kết nối USB camera</span>
           </div>
 
-          <!-- Detection overlay badge (hiện lên khi có detect) -->
+          <!-- Detection overlay badge -->
           <div class="cam-det-overlay" id="cam-det-overlay" style="display:none">
-            <span class="cam-det-label" id="cam-det-label">GREEN</span>
+            <span class="cam-det-label" id="cam-det-label">KIM_LOAI</span>
             <span class="cam-det-conf" id="cam-det-conf">---%</span>
           </div>
 
@@ -166,13 +176,16 @@
           <div class="donut-ring">
             <svg viewBox="0 0 120 120" class="donut-svg">
               <circle cx="60" cy="60" r="46" fill="none" stroke="var(--bg3)" stroke-width="16"/>
-              <circle id="d-green"  cx="60" cy="60" r="46" fill="none" stroke="var(--green)"  stroke-width="16"
+              <circle id="d-kimloai"  cx="60" cy="60" r="46" fill="none" stroke="var(--kimloai)"  stroke-width="16"
                 stroke-dasharray="0 289" stroke-linecap="butt" transform="rotate(-90 60 60)"
                 style="transition:stroke-dasharray .6s ease"/>
-              <circle id="d-red"    cx="60" cy="60" r="46" fill="none" stroke="var(--red)"    stroke-width="16"
+              <circle id="d-nhua"    cx="60" cy="60" r="46" fill="none" stroke="var(--nhua)"    stroke-width="16"
                 stroke-dasharray="0 289" stroke-linecap="butt" transform="rotate(-90 60 60)"
                 style="transition:stroke-dasharray .6s ease"/>
-              <circle id="d-yellow" cx="60" cy="60" r="46" fill="none" stroke="var(--yellow)" stroke-width="16"
+              <circle id="d-giay" cx="60" cy="60" r="46" fill="none" stroke="var(--giay)" stroke-width="16"
+                stroke-dasharray="0 289" stroke-linecap="butt" transform="rotate(-90 60 60)"
+                style="transition:stroke-dasharray .6s ease"/>
+              <circle id="d-khongphairac" cx="60" cy="60" r="46" fill="none" stroke="var(--khongphairac)" stroke-width="16"
                 stroke-dasharray="0 289" stroke-linecap="butt" transform="rotate(-90 60 60)"
                 style="transition:stroke-dasharray .6s ease"/>
             </svg>
@@ -183,19 +196,24 @@
           </div>
           <div class="donut-legend">
             <div class="legend-item">
-              <span class="legend-dot" style="background:var(--green)"></span>
-              <span class="legend-name">Green</span>
-              <span class="legend-pct" id="pct-green">0%</span>
+              <span class="legend-dot" style="background:var(--kimloai)"></span>
+              <span class="legend-name">Kim Loại</span>
+              <span class="legend-pct" id="pct-kimloai">0%</span>
             </div>
             <div class="legend-item">
-              <span class="legend-dot" style="background:var(--red)"></span>
-              <span class="legend-name">Red</span>
-              <span class="legend-pct" id="pct-red">0%</span>
+              <span class="legend-dot" style="background:var(--nhua)"></span>
+              <span class="legend-name">Nhựa</span>
+              <span class="legend-pct" id="pct-nhua">0%</span>
             </div>
             <div class="legend-item">
-              <span class="legend-dot" style="background:var(--yellow)"></span>
-              <span class="legend-name">Yellow</span>
-              <span class="legend-pct" id="pct-yellow">0%</span>
+              <span class="legend-dot" style="background:var(--giay)"></span>
+              <span class="legend-name">Giấy</span>
+              <span class="legend-pct" id="pct-giay">0%</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot" style="background:var(--khongphairac)"></span>
+              <span class="legend-name">Ko Phải Rác</span>
+              <span class="legend-pct" id="pct-khongphairac">0%</span>
             </div>
           </div>
         </div>
@@ -212,7 +230,7 @@
       <div class="log-card">
         <div class="log-header">
           <span style="width:72px">Time</span>
-          <span style="width:72px">Color</span>
+          <span style="width:90px">Loại</span>
           <span style="width:64px">Conf</span>
           <span style="flex:1">Action</span>
           <span style="width:60px">Station</span>

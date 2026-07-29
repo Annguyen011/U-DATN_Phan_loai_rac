@@ -11,9 +11,10 @@ imgsz:
 - 320
 - 320
 names:
-  0: green
-  1: red
-  2: yellow
+  0: KIM_LOAI
+  1: NHUA
+  2: GIAY
+  3: KHONG_PHAI_RAC
 args:
   batch: 1
   half: true

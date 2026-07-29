@@ -199,11 +199,14 @@ def create_flask_app(
 
     @app.route("/api/stats/live")
     def stats_live():
-        g, r, y = _live["GREEN"], _live["RED"], _live["YELLOW"]
+        kl = _live["KIM_LOAI"]
+        nh = _live["NHUA"]
+        gi = _live["GIAY"]
+        kpr = _live["KHONG_PHAI_RAC"]
         return jsonify({
-            "GREEN": g, "RED": r, "YELLOW": y,
+            "KIM_LOAI": kl, "NHUA": nh, "GIAY": gi, "KHONG_PHAI_RAC": kpr,
             "rejects": _live["rejects"],
-            "total":   g + r + y,
+            "total":   kl + nh + gi + kpr,
             "ts":      time.time(),
         })
 
@@ -229,11 +232,14 @@ def create_flask_app(
 
     def _push_loop():
         while not stop_event.is_set():
-            g, r, y = _live["GREEN"], _live["RED"], _live["YELLOW"]
+            kl = _live["KIM_LOAI"]
+            nh = _live["NHUA"]
+            gi = _live["GIAY"]
+            kpr = _live["KHONG_PHAI_RAC"]
             socketio.emit("stats_update", {
-                "GREEN":   g, "RED": r, "YELLOW": y,
+                "KIM_LOAI": kl, "NHUA": nh, "GIAY": gi, "KHONG_PHAI_RAC": kpr,
                 "rejects": _live["rejects"],
-                "total":   g + r + y,
+                "total":   kl + nh + gi + kpr,
                 "ts":      time.time(),
             })
             time.sleep(push_ivl)
