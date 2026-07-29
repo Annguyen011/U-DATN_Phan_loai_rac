@@ -86,8 +86,8 @@ def create_flask_app(
 
     app = Flask(
         __name__,
-        template_folder="../templates",
-        static_folder="../static",
+        template_folder="web/templates",
+        static_folder="web/static",
     )
     app.config["SECRET_KEY"] = cfg["web"]["secret_key"]
 

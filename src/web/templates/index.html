@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>♻️ TrashSorter — AI Phân Loại Rác</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ═══════════ SIDEBAR ═══════════ -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-icon">♻️</div>
+      <div class="logo-text">
+        <span class="logo-title">TrashSorter</span>
+        <span class="logo-sub">AI Classification</span>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a class="nav-item active" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Dashboard
+      </a>
+      <a class="nav-item" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Analytics
+      </a>
+      <a class="nav-item" href="#">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        History
+      </a>
+    </nav>
+
+    <div class="sidebar-section">
+      <div class="section-label">Live Counter</div>
+      <div class="counter-list">
+        <div class="counter-item metal">
+          <span class="counter-dot"></span>
+          <span class="counter-name">Kim Loại</span>
+          <span class="counter-val" id="sb-metal">0</span>
+        </div>
+        <div class="counter-item plastic">
+          <span class="counter-dot"></span>
+          <span class="counter-name">Nhựa</span>
+          <span class="counter-val" id="sb-plastic">0</span>
+        </div>
+        <div class="counter-item paper">
+          <span class="counter-dot"></span>
+          <span class="counter-name">Giấy</span>
+          <span class="counter-val" id="sb-paper">0</span>
+        </div>
+        <div class="counter-item other">
+          <span class="counter-dot"></span>
+          <span class="counter-name">Ko Phải Rác</span>
+          <span class="counter-val" id="sb-other">0</span>
+        </div>
+        <div class="counter-item reject" style="margin-top:12px;padding-top:10px;border-top:1px solid #1e1e2e">
+          <span class="counter-dot"></span>
+          <span class="counter-name">Rejects</span>
+          <span class="counter-val" id="sb-rejects">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="status-row">
+        <span class="status-dot" id="ws-dot"></span>
+        <span id="ws-label">Connecting…</span>
+      </div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+  </aside>
+
+  <!-- ═══════════ MAIN ═══════════ -->
+  <main class="main">
+
+    <!-- ── Header ── -->
+    <header class="header">
+      <h1>Dashboard</h1>
+      <span class="badge" id="last-update">—</span>
+      <span class="spacer"></span>
+      <span class="tag">TrashSorter v1.0</span>
+    </header>
+
+    <!-- ── Stats Row ── -->
+    <div class="stats-row">
+      <div class="stat-card metal">
+        <div class="stat-header">
+          <span class="stat-icon">🪙</span>
+          <span class="stat-label">Kim Loại</span>
+        </div>
+        <div class="stat-value" id="cnt-metal">0</div>
+        <div class="stat-sub" id="sub-metal">—</div>
+      </div>
+      <div class="stat-card plastic">
+        <div class="stat-header">
+          <span class="stat-icon">🧴</span>
+          <span class="stat-label">Nhựa</span>
+        </div>
+        <div class="stat-value" id="cnt-plastic">0</div>
+        <div class="stat-sub" id="sub-plastic">—</div>
+      </div>
+      <div class="stat-card paper">
+        <div class="stat-header">
+          <span class="stat-icon">📄</span>
+          <span class="stat-label">Giấy</span>
+        </div>
+        <div class="stat-value" id="cnt-paper">0</div>
+        <div class="stat-sub" id="sub-paper">—</div>
+      </div>
+      <div class="stat-card other">
+        <div class="stat-header">
+          <span class="stat-icon">🚫</span>
+          <span class="stat-label">Ko Phải Rác</span>
+        </div>
+        <div class="stat-value" id="cnt-other">0</div>
+        <div class="stat-sub" id="sub-other">—</div>
+      </div>
+      <div class="stat-card total">
+        <div class="stat-header">
+          <span class="stat-icon">📦</span>
+          <span class="stat-label">Tổng</span>
+        </div>
+        <div class="stat-value" id="cnt-total">0</div>
+        <div class="stat-sub" id="sub-reject">Reject 0%</div>
+      </div>
+    </div>
+
+    <!-- ── Camera + Donut ── -->
+    <div class="content-row">
+      <!-- Camera Panel -->
+      <div class="panel camera-panel">
+        <div class="panel-header">
+          <h2>📷 Camera Stream</h2>
+          <div class="panel-badges">
+            <span class="badge-outline" id="cam-status">streaming</span>
+            <span class="badge-accent" id="detect-badge">No detection</span>
+          </div>
+        </div>
+        <div class="cam-container">
+          <img id="cam-stream" src="/video_feed" alt="Camera" onerror="handleCamError()" onload="handleCamLoad()"/>
+          <div class="cam-overlay-offline" id="cam-offline">
+            <div class="offline-icon">📷</div>
+            <div>Camera Offline</div>
+            <small>Kiểm tra kết nối USB</small>
+          </div>
+          <div class="cam-overlay-detect" id="detect-overlay" style="display:none">
+            <span class="detect-label" id="detect-label">---</span>
+            <span class="detect-conf" id="detect-conf">--%</span>
+          </div>
+          <div class="cam-live" id="cam-live">
+            <span class="live-dot"></span> LIVE
+          </div>
+        </div>
+      </div>
+
+      <!-- Donut Panel -->
+      <div class="panel donut-panel">
+        <div class="panel-header">
+          <h2>📊 Phân Phối</h2>
+        </div>
+        <div class="donut-wrap">
+          <svg viewBox="0 0 140 140" class="donut">
+            <circle cx="70" cy="70" r="54" fill="none" stroke="#1e1e2e" stroke-width="18"/>
+            <circle id="d-metal"  cx="70" cy="70" r="54" fill="none" stroke="currentColor" stroke-width="18"
+              stroke-dasharray="0 339" stroke-linecap="round" transform="rotate(-90 70 70)"
+              style="color:#6b7280;transition:all .6s"/>
+            <circle id="d-plastic" cx="70" cy="70" r="54" fill="none" stroke="currentColor" stroke-width="18"
+              stroke-dasharray="0 339" stroke-linecap="round" transform="rotate(-90 70 70)"
+              style="color:#f59e0b;transition:all .6s"/>
+            <circle id="d-paper"  cx="70" cy="70" r="54" fill="none" stroke="currentColor" stroke-width="18"
+              stroke-dasharray="0 339" stroke-linecap="round" transform="rotate(-90 70 70)"
+              style="color:#06b6d4;transition:all .6s"/>
+            <circle id="d-other"  cx="70" cy="70" r="54" fill="none" stroke="currentColor" stroke-width="18"
+              stroke-dasharray="0 339" stroke-linecap="round" transform="rotate(-90 70 70)"
+              style="color:#8b5cf6;transition:all .6s"/>
+          </svg>
+          <div class="donut-center">
+            <span class="donut-total" id="donut-total">0</span>
+            <span class="donut-label">đã phân loại</span>
+          </div>
+          <div class="donut-legend">
+            <div class="legend-row"><span class="legend-dot" style="background:#6b7280"></span> Kim Loại <span id="pct-metal">0%</span></div>
+            <div class="legend-row"><span class="legend-dot" style="background:#f59e0b"></span> Nhựa <span id="pct-plastic">0%</span></div>
+            <div class="legend-row"><span class="legend-dot" style="background:#06b6d4"></span> Giấy <span id="pct-paper">0%</span></div>
+            <div class="legend-row"><span class="legend-dot" style="background:#8b5cf6"></span> Ko Phải Rác <span id="pct-other">0%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Event Log ── -->
+    <div class="panel log-panel">
+      <div class="panel-header">
+        <h2>📋 Live Event Log</h2>
+        <span class="badge-outline" id="event-count">0 events</span>
+      </div>
+      <div class="log-table">
+        <div class="log-th">
+          <span>Time</span><span>Loại</span><span>Conf</span><span style="flex:1">Action</span><span>Station</span>
+        </div>
+        <div class="log-tbody" id="event-log"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script src="/static/js/dashboard.js"></script>
+</body>
+</html>
