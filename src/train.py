@@ -85,14 +85,10 @@ def copy_files(file_list, target_dir):
         shutil.copy2(img_path, target_dir / "images" / img_path.name)
 
         # Copy label nếu có
-        if lbl_path.exists():
-            shutil.copy2(lbl_path, target_dir / "labels" / lbl_path.name)
-        else:
-            print(f"  ⚠️  Thiếu label: {lbl_path.name} — tạo label mặc định class={cls_idx}")
-            # Tạo label YOLO mặc định (giả định toàn ảnh là object)
-            (target_dir / "labels" / f"{img_path.stem}.txt").write_text(
-                f"{cls_idx} 0.5 0.5 0.9 0.9\n"
-            )
+        # Auto-label: tự tạo label YOLO từ tên thư mục
+        (target_dir / "labels" / f"{img_path.stem}.txt").write_text(
+            f"{cls_idx} 0.5 0.5 0.9 0.9\n"
+        )
 
 copy_files(train_files, YOLO_TRAIN)
 copy_files(val_files, YOLO_VAL)

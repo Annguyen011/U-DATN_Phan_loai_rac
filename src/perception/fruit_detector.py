@@ -131,7 +131,9 @@ class FruitDetector(threading.Thread):
         self._stable_frames = cfg["model"]["thresholds"].get("min_stable_frames", 3)
         self._track_label: str | None = None
         self._track_count = 0
-        self._track_sent = False  # tránh gửi trùng 1 vật nhiều lần
+        self._track_sent = False
+        self._last_detect_time = 0.0
+        self._detect_cooldown = 2.5  # giây giữa 2 detection
 
     def run(self) -> None:
         self._load_model()
@@ -185,8 +187,11 @@ class FruitDetector(threading.Thread):
                 self._track_count = 0
                 self._track_sent = False
 
-            if (best and self._track_count >= self._stable_frames and not self._track_sent):
+            if (best and self._track_count >= self._stable_frames
+                    and not self._track_sent
+                    and (time.monotonic() - self._last_detect_time) > self._detect_cooldown):
                 self._track_sent = True
+                self._last_detect_time = time.monotonic()
                 result = self._build_result(best)
                 if result:
                     with self.lock:
