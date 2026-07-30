@@ -68,7 +68,7 @@ hardware:
     servo1:
       pin: 9                 # Arduino PWM pin 9
       label: "Kim Loại"
-      home_angle: 220        # vị trí nghỉ (270° servo)
+      home_angle: 0          # vị trí nghỉ — giống servo2
       sweep_angle: 120       # góc gạt (fire)
       sweep_ms: 200          # thời gian gạt (ms)
       return_ms: 300         # thời gian trở về (ms)
@@ -112,9 +112,9 @@ model:
   use_gpu: false
 
   thresholds:
-    confidence: 0.30         # Rất thấp — ưu tiên phát hiện hơn chính xác
+    confidence: 0.65         # Lọc nhiễu đốm trắng trên băng tải đen
     iou_nms: 0.45
-    min_bbox_area: 500       # px² — vật nhỏ trên băng chuyền
+    min_bbox_area: 1000      # px² — bỏ qua đốm nhiễu nhỏ
 
    # Nhãn lớp — thứ tự PHẢI khớp với model đã train
   labels:

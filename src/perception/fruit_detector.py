@@ -162,13 +162,14 @@ class FruitDetector(threading.Thread):
                 self._skip_counter = 0
                 self._last_dets = self._run_inference(frame)
 
-            for det in self._last_dets:
-                result = self._build_result(det)
+            # ── Chỉ lấy 1 detection có confidence cao nhất (từng sản phẩm một) ─
+            if self._last_dets:
+                best = max(self._last_dets, key=lambda d: d["confidence"])
+                result = self._build_result(best)
                 if result:
                     with self.lock:
                         self.queue.append(result)
-                    # ── Push detection event lên dashboard ngay lập tức ──
-                    push_detection_event(det["label"], det["confidence"])
+                    push_detection_event(best["label"], best["confidence"])
 
             elapsed = time.monotonic() - t0
             cycle_times.append(elapsed)
