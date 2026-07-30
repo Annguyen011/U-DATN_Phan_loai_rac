@@ -42,7 +42,7 @@ def create_flask_app(cfg: dict, store, stop_event: threading.Event) -> tuple[Fla
     global _socketio_ref, _store
     _store = store
 
-    app = Flask(__name__, template_folder="web/templates", static_folder="web/static")
+    app = Flask(__name__, template_folder="templates", static_folder="static")
     app.config["SECRET_KEY"] = cfg["web"]["secret_key"]
 
     socketio = SocketIO(app, async_mode=cfg["web"]["socketio_async_mode"],
