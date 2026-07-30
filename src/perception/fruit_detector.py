@@ -127,6 +127,12 @@ class FruitDetector(threading.Thread):
         self._skip_counter = 0
         self._last_dets: list[dict] = []
 
+        # Stability filter: vật phải xuất hiện N frame liên tiếp mới tính
+        self._stable_frames = cfg["model"]["thresholds"].get("min_stable_frames", 3)
+        self._track_label: str | None = None
+        self._track_count = 0
+        self._track_sent = False  # tránh gửi trùng 1 vật nhiều lần
+
     def run(self) -> None:
         self._load_model()
         cap     = self._open_camera()
@@ -162,14 +168,34 @@ class FruitDetector(threading.Thread):
                 self._skip_counter = 0
                 self._last_dets = self._run_inference(frame)
 
-            # ── Chỉ lấy 1 detection có confidence cao nhất (từng sản phẩm một) ─
+            # ── Stability filter: chỉ push khi vật xuất hiện N frame liên tiếp ─
+            best = None
             if self._last_dets:
                 best = max(self._last_dets, key=lambda d: d["confidence"])
+                best_label = best["label"]
+                if best_label == self._track_label:
+                    self._track_count += 1
+                else:
+                    self._track_label = best_label
+                    self._track_count = 1
+                    self._track_sent = False
+            else:
+                # Không detect gì → reset tracker
+                self._track_label = None
+                self._track_count = 0
+                self._track_sent = False
+
+            if (best and self._track_count >= self._stable_frames and not self._track_sent):
+                self._track_sent = True
                 result = self._build_result(best)
                 if result:
                     with self.lock:
                         self.queue.append(result)
                     push_detection_event(best["label"], best["confidence"])
+                    log.info(
+                        "Stable detection: %s conf=%.2f after %d frames",
+                        best["label"], best["confidence"], self._track_count
+                    )
 
             elapsed = time.monotonic() - t0
             cycle_times.append(elapsed)

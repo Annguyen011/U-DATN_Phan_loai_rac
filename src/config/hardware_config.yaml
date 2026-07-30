@@ -112,9 +112,10 @@ model:
   use_gpu: false
 
   thresholds:
-    confidence: 0.65         # Lọc nhiễu đốm trắng trên băng tải đen
+    confidence: 0.30         # Nhạy với vật thật
     iou_nms: 0.45
-    min_bbox_area: 1000      # px² — bỏ qua đốm nhiễu nhỏ
+    min_bbox_area: 1500      # px² — lọc đốm trắng nhỏ (<39×39px)
+    min_stable_frames: 3     # Vật phải xuất hiện 3 frame liên tiếp mới tính
 
    # Nhãn lớp — thứ tự PHẢI khớp với model đã train
   labels:
