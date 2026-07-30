@@ -206,16 +206,28 @@ class FruitDetector(threading.Thread):
             self._interp = None
 
     def _open_camera(self) -> cv2.VideoCapture:
-        cap = cv2.VideoCapture(self._cam_idx, cv2.CAP_V4L2)
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH,  self._cam_w)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._cam_h)
-        cap.set(cv2.CAP_PROP_FPS,          self._cam_fps)
-        cap.set(cv2.CAP_PROP_BUFFERSIZE,   self._cam_buf)
-        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
-        if not cap.isOpened():
-            raise RuntimeError(f"Cannot open camera {self._cam_idx}")
-        log.info(f"Camera: {self._cam_w}×{self._cam_h} @ {cap.get(cv2.CAP_PROP_FPS):.0f}fps")
-        return cap
+        # Thử mở camera với nhiều index, bắt đầu từ config
+        for idx in (self._cam_idx, 0, 1, 2):
+            log.info(f"Trying camera index {idx}...")
+            cap = cv2.VideoCapture(idx, cv2.CAP_V4L2)
+            if not cap.isOpened():
+                cap.release()
+                continue
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH,  self._cam_w)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, self._cam_h)
+            cap.set(cv2.CAP_PROP_FPS,          self._cam_fps)
+            cap.set(cv2.CAP_PROP_BUFFERSIZE,   self._cam_buf)
+            # Thử MJPG, nếu không được thì fallback YUYV
+            got = cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*"MJPG"))
+            w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            log.info(f"Camera {idx}: {w}×{h} @ {fps:.0f}fps | MJPG={'OK' if got else 'YUYV'}")
+            self._cam_idx = idx  # ghi nhớ index thành công
+            return cap
+        # Fallback: không crash, dùng simulation
+        log.warning("No camera found — running in simulation mode")
+        return cv2.VideoCapture()  # dummy, sẽ trigger simulation path
 
     def _run_inference(self, frame: np.ndarray) -> list[dict]:
         if self._interp is None:
