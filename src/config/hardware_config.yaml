@@ -67,18 +67,24 @@ hardware:
   servos:
     servo1:
       pin: 9                 # Arduino PWM pin 9
-      label: "sorter_green"
-      angle_neutral: 90
-      angle_left: 45         # GREEN → trái
-      angle_right: 135       # Reject → phải
-      hold_ms: 500
+      label: "Kim Loại"
+      home_angle: 220        # vị trí nghỉ (270° servo)
+      sweep_angle: 120       # góc gạt (fire)
+      sweep_ms: 200          # thời gian gạt (ms)
+      return_ms: 300         # thời gian trở về (ms)
+      max_angle: 270
+      min_us: 500
+      max_us: 2500
     servo2:
       pin: 10                # Arduino PWM pin 10
-      label: "sorter_red_yellow"
-      angle_neutral: 90
-      angle_left: 50         # RED → trái
-      angle_right: 130       # YELLOW → phải
-      hold_ms: 500
+      label: "Nhựa / Giấy"
+      home_angle: 0          # vị trí nghỉ (270° servo)
+      sweep_angle: 120       # góc gạt (fire)
+      sweep_ms: 200
+      return_ms: 300
+      max_angle: 270
+      min_us: 500
+      max_us: 2500
 
 # ---------------------------------------------------------------------------
 # CONVEYOR — băng chuyền
@@ -102,13 +108,13 @@ model:
   type: "ncnn"
   input_size: [320, 320]
   num_threads: 4
-  frame_skip: 2             # Chạy AI mỗi 2 frame (tăng phát hiện)
-  use_gpu: false              # ← THÊM DÒNG NÀY — RPi4 không có Vulkan   
+  frame_skip: 1             # AI mỗi frame — băng chuyền cần nhanh
+  use_gpu: false
 
   thresholds:
-    confidence: 0.40         # Hạ ngưỡng cho camera 480p
-    iou_nms: 0.45            # NMS overlap threshold
-    min_bbox_area: 800       # px² — cho vật nhỏ
+    confidence: 0.30         # Rất thấp — ưu tiên phát hiện hơn chính xác
+    iou_nms: 0.45
+    min_bbox_area: 500       # px² — vật nhỏ trên băng chuyền
 
    # Nhãn lớp — thứ tự PHẢI khớp với model đã train
   labels:

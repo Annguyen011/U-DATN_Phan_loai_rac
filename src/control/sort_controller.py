@@ -102,11 +102,15 @@ class SortController(threading.Thread):
             self._store.add(item.trash_type.value, item.confidence, item.action.value, sensor_id, is_reject=True)
             return
 
-        parts     = item.action.value.split("_")   # "SERVO1_LEFT" → ["SERVO1","LEFT"]
+        parts     = item.action.value.split("_")
         servo_id  = int(parts[0].replace("SERVO", ""))
         direction = parts[1].lower()
 
-        ok = self._serial.send(cmd_sort(servo_id, direction))
+        # Đọc config servo từ hardware_config.yaml
+        servo_key = f"servo{servo_id}"
+        cfg_servo = self._cfg.get("hardware", {}).get("servos", {}).get(servo_key, {})
+
+        ok = self._serial.send(cmd_sort(servo_id, direction, cfg_servo))
         status = "OK" if ok else "SERIAL_ERR"
         self._store.add(item.trash_type.value, item.confidence, item.action.value, sensor_id, is_reject=False)
         log.info(
