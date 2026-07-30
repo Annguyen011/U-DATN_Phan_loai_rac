@@ -68,7 +68,7 @@ hardware:
     servo1:
       pin: 9                 # Arduino PWM pin 9
       label: "Kim Loại"
-      home_angle: 0          # vị trí nghỉ — giống servo2
+      home_angle: 220        # vị trí nghỉ (270° servo, khác servo2)
       sweep_angle: 120       # góc gạt (fire)
       sweep_ms: 200          # thời gian gạt (ms)
       return_ms: 300         # thời gian trở về (ms)

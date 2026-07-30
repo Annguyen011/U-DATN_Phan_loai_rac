@@ -28,6 +28,8 @@ _latest_frame_lock = threading.Lock()
 _latest_frame      = None
 _socketio_ref: SocketIO | None = None
 _store             = None
+_serial_ref        = None  # để gửi lệnh manual
+_servo_cfg         = {}
 
 def push_frame(jpeg_bytes: bytes):
     global _latest_frame
@@ -38,8 +40,13 @@ def push_detection_event(label: str, confidence: float):
     if _socketio_ref:
         _socketio_ref.emit("detection", {"label": label, "confidence": confidence, "ts": time.time()})
 
+def set_serial_for_manual(serial_link):
+    global _serial_ref, _servo_cfg
+    _serial_ref = serial_link
+
 def create_flask_app(cfg: dict, store, stop_event: threading.Event) -> tuple[Flask, SocketIO]:
-    global _socketio_ref, _store
+    global _socketio_ref, _store, _servo_cfg
+    _servo_cfg = cfg.get("hardware", {}).get("servos", {})
     _store = store
 
     app = Flask(__name__, template_folder="templates", static_folder="static")
@@ -122,6 +129,34 @@ def create_flask_app(cfg: dict, store, stop_event: threading.Event) -> tuple[Fla
     @app.route("/api/stats/hourly")
     def stats_hourly():
         return jsonify(_store.hourly_breakdown())
+
+    @app.route("/api/servo/manual", methods=["POST"])
+    def servo_manual():
+        """Trigger servo manually from dashboard button."""
+        data = request.get_json() or {}
+        trash_type = data.get("type", "KIM_LOAI")
+        direction = data.get("dir", "left")
+
+        # Map loại rác → servo + direction
+        routes = {
+            "KIM_LOAI":       (1, "left"),
+            "NHUA":           (2, "left"),
+            "GIAY":           (2, "right"),
+            "KHONG_PHAI_RAC": (None, None),
+        }
+        servo_id, _dir = routes.get(trash_type, (None, None))
+        if servo_id is None:
+            return jsonify({"ok": False, "msg": "No servo for this type"}), 400
+
+        cfg_key = f"servo{servo_id}"
+        cfg_servo = _servo_cfg.get(cfg_key, {})
+
+        if _serial_ref:
+            from shared.serial_protocol import cmd_sort
+            _serial_ref.send(cmd_sort(servo_id, _dir or direction, cfg_servo))
+            _store.add(trash_type, 1.0, f"MANUAL_SERVO{servo_id}_{(_dir or direction).upper()}", 0, is_reject=False)
+            return jsonify({"ok": True, "servo": servo_id, "type": trash_type})
+        return jsonify({"ok": False, "msg": "No serial link"}), 503
 
     # ── SocketIO background push ─────────────────────────────────────────
     def _push_loop():

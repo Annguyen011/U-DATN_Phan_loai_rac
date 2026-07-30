@@ -74,6 +74,8 @@ def main() -> None:
 
     flask_app, socketio = create_app()
     serial_link = SerialLink(cfg, stop_event)
+    from web.flask_app import set_serial_for_manual
+    set_serial_for_manual(serial_link)
     store.start()
 
     detector = FruitDetector(

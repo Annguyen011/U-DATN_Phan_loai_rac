@@ -214,3 +214,24 @@ function addLogRow(e) {
 
   if (!e.is_reject) showDetect(trash, e.confidence);
 }
+
+/* ── Manual Servo ──────────────────────────────────────────────────────── */
+async function triggerServo(type) {
+  const status = $('manual-status');
+  status.textContent = 'Sending...';
+  status.className = 'manual-status sending';
+  try {
+    const r = await fetch('/api/servo/manual', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({type: type})
+    });
+    const d = await r.json();
+    status.textContent = d.ok ? `✅ ${type} → Servo ${d.servo}` : `❌ ${d.msg}`;
+    status.className = 'manual-status ' + (d.ok ? 'ok' : 'error');
+  } catch(e) {
+    status.textContent = '❌ Connection error';
+    status.className = 'manual-status error';
+  }
+  setTimeout(() => { status.textContent = ''; status.className = 'manual-status'; }, 2500);
+}

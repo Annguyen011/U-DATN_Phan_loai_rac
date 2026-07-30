@@ -196,6 +196,20 @@
       </div>
     </div>
 
+    <!-- ── Manual Control ── -->
+    <div class="panel manual-panel">
+      <div class="panel-header">
+        <h2>🎮 Manual Servo</h2>
+      </div>
+      <div class="manual-btns">
+        <button class="btn-manual metal" onclick="triggerServo('KIM_LOAI')">🪙 Kim Loại</button>
+        <button class="btn-manual plastic" onclick="triggerServo('NHUA')">🧴 Nhựa</button>
+        <button class="btn-manual paper" onclick="triggerServo('GIAY')">📄 Giấy</button>
+        <button class="btn-manual other" onclick="triggerServo('KHONG_PHAI_RAC')">🚫 Ko Phải Rác</button>
+      </div>
+      <div class="manual-status" id="manual-status"></div>
+    </div>
+
     <!-- ── Event Log ── -->
     <div class="panel log-panel">
       <div class="panel-header">
