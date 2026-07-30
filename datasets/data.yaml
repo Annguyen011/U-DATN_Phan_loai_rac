@@ -1,0 +1,20 @@
+# ── TrashSorter Dataset Config (dùng cho YOLOv11n) ───────────────────
+# Đặt ảnh vào các thư mục tương ứng, mỗi ảnh phải có file label .txt
+# Cấu trúc thư mục:
+#   datasets/
+#   ├── kim_loai/        ← ảnh + label của kim loại
+#   ├── nhua/            ← ảnh + label của nhựa
+#   ├── giay/            ← ảnh + label của giấy
+#   └── khong_phai_rac/  ← ảnh + label của không phải rác
+
+path: .                     # thư mục gốc datasets/
+train: ../datasets           # train từ tất cả ảnh trong thư mục con
+val: ../datasets             # dùng chung nếu chưa tách val
+
+# ── Nhãn ─────────────────────────────────────────────────────────────
+nc: 4
+names:
+  0: KIM_LOAI
+  1: NHUA
+  2: GIAY
+  3: KHONG_PHAI_RAC

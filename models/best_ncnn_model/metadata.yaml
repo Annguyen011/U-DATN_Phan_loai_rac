@@ -1,20 +1,23 @@
-description: Ultralytics YOLO11n model trained on /root/data/data_set_an_1/data.yaml
+description: Ultralytics YOLO11n model trained on /home/an/Documents/git/do_an_tot_nghiep_clone/datasets/data.yaml
 author: Ultralytics
-date: '2026-04-15T08:35:06.963655'
-version: 8.3.228
+date: '2026-07-30T07:21:39.872300'
+version: 8.4.104
 license: AGPL-3.0 License (https://ultralytics.com/license)
 docs: https://docs.ultralytics.com
 stride: 32
 task: detect
+head: Detect
 batch: 1
 imgsz:
 - 320
 - 320
 names:
-  0: green
-  1: red
-  2: yellow
+  0: KIM_LOAI
+  1: NHUA
+  2: GIAY
+  3: KHONG_PHAI_RAC
 args:
   batch: 1
-  half: true
+  quantize: null
 channels: 3
+end2end: false
