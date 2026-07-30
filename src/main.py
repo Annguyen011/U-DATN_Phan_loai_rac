@@ -23,23 +23,25 @@ import threading
 from collections import deque
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent))
+_PROJECT_ROOT = Path(__file__).parent         # src/
+sys.path.insert(0, str(_PROJECT_ROOT))
 
-from config.loader import load_config
-from perception.fruit_detector import FruitDetector
-from control.sort_controller import SortController
-from drivers.serial_link import SerialLink
-from database.store import TrashStore
-from shared.detection_result import DetectionResult
+from config.loader import load_config          # noqa: E402
+from perception.fruit_detector import FruitDetector  # noqa: E402
+from control.sort_controller import SortController  # noqa: E402
+from drivers.serial_link import SerialLink           # noqa: E402
+from database.store import TrashStore                # noqa: E402
+from shared.detection_result import DetectionResult  # noqa: E402
 
 parser = argparse.ArgumentParser(description="TrashSorter — AI Trash Classification")
-parser.add_argument("--config", default="config/hardware_config.yaml")
+parser.add_argument("--config", default=None)
 parser.add_argument("--debug", action="store_true")
 parser.add_argument("--host", default=None, help="Override web host")
 parser.add_argument("--port", type=int, default=None, help="Override web port")
 args = parser.parse_args()
 
-cfg = load_config(args.config)
+cfg_path = args.config or str(_PROJECT_ROOT / "config" / "hardware_config.yaml")
+cfg = load_config(cfg_path)
 log_dir = Path(cfg["system"]["log_file"]).parent
 log_dir.mkdir(parents=True, exist_ok=True)
 
