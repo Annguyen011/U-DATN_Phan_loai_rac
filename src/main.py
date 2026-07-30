@@ -1,11 +1,11 @@
 """
 TrashSorter — Main Entry Point
 ================================
-Kiến trúc: 4 threads chạy song song
+Kiến trúc: 3 threads + JSON store
   T1: Perception   — Camera → AI NCNN → Detection Queue
   T2: Control      — Serial → Arduino → Sort Dispatch
   T3: Web          — Flask + SocketIO Dashboard
-  BG: DB Writer    — Batch SQLite persister
+  BG: JSON Store   — Auto-save to data/sorter.json
 
 Usage:
   python main.py
@@ -23,17 +23,15 @@ import threading
 from collections import deque
 from pathlib import Path
 
-# ── Add project root to path ────────────────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).parent))
 
 from config.loader import load_config
 from perception.fruit_detector import FruitDetector
 from control.sort_controller import SortController
 from drivers.serial_link import SerialLink
-from database.db_writer import DatabaseWriter
+from database.store import TrashStore
 from shared.detection_result import DetectionResult
 
-# ── CLI ─────────────────────────────────────────────────────────────────────
 parser = argparse.ArgumentParser(description="TrashSorter — AI Trash Classification")
 parser.add_argument("--config", default="config/hardware_config.yaml")
 parser.add_argument("--debug", action="store_true")
@@ -41,9 +39,7 @@ parser.add_argument("--host", default=None, help="Override web host")
 parser.add_argument("--port", type=int, default=None, help="Override web port")
 args = parser.parse_args()
 
-# ── Config & Logging ────────────────────────────────────────────────────────
 cfg = load_config(args.config)
-
 log_dir = Path(cfg["system"]["log_file"]).parent
 log_dir.mkdir(parents=True, exist_ok=True)
 
@@ -57,17 +53,15 @@ logging.basicConfig(
 )
 log = logging.getLogger("main")
 
-# ── Shared State ────────────────────────────────────────────────────────────
 stop_event      = threading.Event()
 detection_queue = deque(maxlen=cfg["system"]["queue_maxlen"])
 queue_lock      = threading.Lock()
-db_write_queue  = deque(maxlen=200)
+store           = TrashStore("data/sorter.json")
 
 
 def create_app():
-    """Lazy import Flask app — tránh circular imports."""
     from web.flask_app import create_flask_app
-    return create_flask_app(cfg, db_write_queue, stop_event)
+    return create_flask_app(cfg, store, stop_event)
 
 
 def main() -> None:
@@ -76,57 +70,35 @@ def main() -> None:
     log.info("  Model: %s | Labels: %s", cfg["model"]["path"], list(cfg["model"]["labels"].values()))
     log.info("=" * 55)
 
-    # ── Flask app ──────────────────────────────────────────────────────
     flask_app, socketio = create_app()
-
-    # ── Serial link ────────────────────────────────────────────────────
     serial_link = SerialLink(cfg, stop_event)
+    store.start()
 
-    # ── Thread 1: Perception ───────────────────────────────────────────
     detector = FruitDetector(
-        cfg=cfg,
-        detection_queue=detection_queue,
-        queue_lock=queue_lock,
-        stop_event=stop_event,
-        name="T1-Perception",
-        daemon=True,
+        cfg=cfg, detection_queue=detection_queue,
+        queue_lock=queue_lock, stop_event=stop_event,
+        name="T1-Perception", daemon=True,
     )
 
-    # ── Thread 2: Control ──────────────────────────────────────────────
     controller = SortController(
-        cfg=cfg,
-        serial_link=serial_link,
-        detection_queue=detection_queue,
-        queue_lock=queue_lock,
-        db_write_queue=db_write_queue,
-        stop_event=stop_event,
-        name="T2-Control",
-        daemon=True,
+        cfg=cfg, serial_link=serial_link,
+        detection_queue=detection_queue, queue_lock=queue_lock,
+        store=store, stop_event=stop_event,
+        name="T2-Control", daemon=True,
     )
 
-    # ── Background: DB Writer ──────────────────────────────────────────
-    db_writer = DatabaseWriter(
-        cfg=cfg,
-        write_queue=db_write_queue,
-        stop_event=stop_event,
-        name="DB-Writer",
-        daemon=True,
-    )
-
-    # ── Graceful shutdown ──────────────────────────────────────────────
     def shutdown(signum=None, frame=None):
-        log.info("🛑 Shutting down all threads...")
+        log.info("🛑 Shutting down...")
         stop_event.set()
+        store.stop()
 
     signal.signal(signal.SIGINT, shutdown)
     signal.signal(signal.SIGTERM, shutdown)
 
-    # ── Start all threads ──────────────────────────────────────────────
-    for t in (serial_link, detector, controller, db_writer):
+    for t in (serial_link, detector, controller):
         t.start()
         log.info("  ▶  %s started", t.name)
 
-    # ── Flask (blocking main thread) ───────────────────────────────────
     host = args.host or cfg["web"]["host"]
     port = args.port or cfg["web"]["port"]
 
@@ -135,18 +107,13 @@ def main() -> None:
     print("  ║  ♻️  TrashSorter Dashboard                           ║")
     print(f"  ║  🌐  http://{host}:{port}                          ║")
     print("  ║  📷  Camera + AI + Arduino                           ║")
+    print("  ║  💾  JSON Store: data/sorter.json                    ║")
     print("  ║  🛑  Press Ctrl+C to stop                            ║")
     print("  ╚══════════════════════════════════════════════════════╝")
     print()
 
-    socketio.run(
-        flask_app,
-        host=host,
-        port=port,
-        debug=args.debug,
-        use_reloader=False,
-        allow_unsafe_werkzeug=True,
-    )
+    socketio.run(flask_app, host=host, port=port, debug=args.debug,
+                 use_reloader=False, allow_unsafe_werkzeug=True)
 
 
 if __name__ == "__main__":
