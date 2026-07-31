@@ -189,7 +189,8 @@ class FruitDetector(threading.Thread):
 
             if (best and self._track_count >= self._stable_frames
                     and not self._track_sent
-                    and (time.monotonic() - self._last_detect_time) > self._detect_cooldown):
+                    and (time.monotonic() - self._last_detect_time) > self._detect_cooldown
+                    and best.get("label") != "KHONG_PHAI_RAC"):
                 self._track_sent = True
                 self._last_detect_time = time.monotonic()
                 result = self._build_result(best)

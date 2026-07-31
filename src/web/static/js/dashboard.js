@@ -83,18 +83,17 @@ function renderStats(data) {
   const kl  = data.KIM_LOAI       || 0;
   const nh  = data.NHUA           || 0;
   const gi  = data.GIAY           || 0;
-  const kpr = data.KHONG_PHAI_RAC || 0;
   const rej = data.rejects        || 0;
-  const tot = kl + nh + gi + kpr;
+  const tot = kl + nh + gi;
 
   setCard('cnt-metal',   kl,  'sub-metal',   prev.KIM_LOAI);
   setCard('cnt-plastic', nh,  'sub-plastic', prev.NHUA);
   setCard('cnt-paper',   gi,  'sub-paper',   prev.GIAY);
-  setCard('cnt-other',   kpr, 'sub-other',   prev.KHONG_PHAI_RAC);
+  $('cnt-rejects').textContent = rej;
+  $('sub-reject-pct').textContent = tot > 0 ? `${Math.round(rej/(tot+rej)*100)}%` : '0%';
 
   $('cnt-total').textContent = tot;
-  $('sub-reject').textContent = tot > 0
-    ? `Reject ${Math.round(rej/(tot+rej)*100)}%` : 'Reject 0%';
+  $('sub-total-detail').textContent = `${kl}🪙 ${nh}🧴 ${gi}📄`;
 
   $('sb-metal').textContent   = kl;
   $('sb-plastic').textContent = nh;
