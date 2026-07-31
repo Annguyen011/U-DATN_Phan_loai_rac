@@ -33,38 +33,40 @@ from drivers.serial_link import SerialLink           # noqa: E402
 from database.store import TrashStore                # noqa: E402
 from shared.detection_result import DetectionResult  # noqa: E402
 
+parser = argparse.ArgumentParser(description="TrashSorter — AI Trash Classification")
+parser.add_argument("--config", default=None)
+parser.add_argument("--debug", action="store_true")
+parser.add_argument("--host", default=None, help="Override web host")
+parser.add_argument("--port", type=int, default=None, help="Override web port")
+args = parser.parse_args()
+
+cfg_path = args.config or str(_PROJECT_ROOT / "config" / "hardware_config.yaml")
+cfg = load_config(cfg_path)
+log_dir = Path(cfg["system"]["log_file"]).parent
+log_dir.mkdir(parents=True, exist_ok=True)
+
+logging.basicConfig(
+    level=logging.DEBUG if args.debug else logging.INFO,
+    format="%(asctime)s [%(threadName)-16s] %(levelname)-5s — %(message)s",
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler(cfg["system"]["log_file"], encoding="utf-8"),
+    ],
+)
+log = logging.getLogger("main")
+
+stop_event      = threading.Event()
+detection_queue = deque(maxlen=cfg["system"]["queue_maxlen"])
+queue_lock      = threading.Lock()
+store           = TrashStore("data/sorter.json")
+
+
+def create_app():
+    from web.flask_app import create_flask_app
+    return create_flask_app(cfg, store, stop_event)
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="TrashSorter — AI Trash Classification")
-    parser.add_argument("--config", default=None)
-    parser.add_argument("--debug", action="store_true")
-    parser.add_argument("--host", default=None, help="Override web host")
-    parser.add_argument("--port", type=int, default=None, help="Override web port")
-    args = parser.parse_args()
-
-    cfg_path = args.config or str(_PROJECT_ROOT / "config" / "hardware_config.yaml")
-    cfg = load_config(cfg_path)
-    log_dir = Path(cfg["system"]["log_file"]).parent
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    logging.basicConfig(
-        level=logging.DEBUG if args.debug else logging.INFO,
-        format="%(asctime)s [%(threadName)-16s] %(levelname)-5s — %(message)s",
-        handlers=[
-            logging.StreamHandler(sys.stdout),
-            logging.FileHandler(cfg["system"]["log_file"], encoding="utf-8"),
-        ],
-    )
-    global log
-    log = logging.getLogger("main")
-
-    stop_event      = threading.Event()
-    detection_queue = deque(maxlen=cfg["system"]["queue_maxlen"])
-    queue_lock      = threading.Lock()
-    store           = TrashStore("data/sorter.json")
-    def create_app():
-        from web.flask_app import create_flask_app
-        return create_flask_app(cfg, store, stop_event)
-
     log.info("=" * 55)
     log.info("  ♻️  TrashSorter v1.0 — AI Trash Classification")
     log.info("  Model: %s | Labels: %s", cfg["model"]["path"], list(cfg["model"]["labels"].values()))
