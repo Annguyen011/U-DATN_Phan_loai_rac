@@ -141,6 +141,33 @@ def create_flask_app(cfg: dict, store, stop_event: threading.Event) -> tuple[Fla
             "ts": time.time(),
         })
 
+    @app.route("/api/servo/calibrate", methods=["POST"])
+    def servo_calibrate():
+        """Test servo góc — di chuyển đến góc, giữ 1s, detach."""
+        data = request.get_json() or {}
+        servo_id = data.get("servo", 1)
+        angle = data.get("angle", 90)
+
+        if _serial_ref:
+            from shared.serial_protocol import cmd_calibrate
+            _serial_ref.send(cmd_calibrate(servo_id, angle))
+            return jsonify({"ok": True, "servo": servo_id, "angle": angle})
+        return jsonify({"ok": False, "msg": "No serial link"}), 503
+
+    @app.route("/api/servo/config", methods=["POST"])
+    def servo_set_config():
+        """Lưu cấu hình góc home + sweep cho servo."""
+        data = request.get_json() or {}
+        servo_id = data.get("servo", 1)
+        home = data.get("home", 0)
+        sweep = data.get("sweep", 90)
+
+        if _serial_ref:
+            from shared.serial_protocol import cmd_set_config
+            _serial_ref.send(cmd_set_config(servo_id, home, sweep))
+            return jsonify({"ok": True, "servo": servo_id, "home": home, "sweep": sweep})
+        return jsonify({"ok": False, "msg": "No serial link"}), 503
+
     @app.route("/api/servo/manual", methods=["POST"])
     def servo_manual():
         """Trigger servo manually from dashboard button."""

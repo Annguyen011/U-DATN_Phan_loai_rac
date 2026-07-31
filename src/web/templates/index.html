@@ -212,6 +212,48 @@
       <div class="manual-status" id="manual-status"></div>
     </div>
 
+    <!-- ── Servo Calibration ── -->
+    <div class="panel calibrate-panel">
+      <div class="panel-header">
+        <h2>🔧 Servo Calibration</h2>
+      </div>
+      <div class="calibrate-grid">
+        <!-- Servo 1 -->
+        <div class="calibrate-card">
+          <h3>Servo 1 (Kim Loại)</h3>
+          <div class="cal-row">
+            <label>Home: <input type="number" id="s1-home" value="0" min="0" max="180"></label>
+            <button class="btn-small" onclick="testCalibrate(1, 'home')">▶ Test</button>
+          </div>
+          <div class="cal-row">
+            <label>Sweep: <input type="number" id="s1-sweep" value="90" min="0" max="180"></label>
+            <button class="btn-small" onclick="testCalibrate(1, 'sweep')">▶ Test</button>
+          </div>
+          <div class="cal-row">
+            <button class="btn-save" onclick="saveConfig(1)">💾 Save Config</button>
+            <button class="btn-fire" onclick="testFire(1)">🔥 Fire</button>
+          </div>
+        </div>
+        <!-- Servo 2 -->
+        <div class="calibrate-card">
+          <h3>Servo 2 (Nhựa/Giấy)</h3>
+          <div class="cal-row">
+            <label>Home: <input type="number" id="s2-home" value="0" min="0" max="180"></label>
+            <button class="btn-small" onclick="testCalibrate(2, 'home')">▶ Test</button>
+          </div>
+          <div class="cal-row">
+            <label>Sweep: <input type="number" id="s2-sweep" value="90" min="0" max="180"></label>
+            <button class="btn-small" onclick="testCalibrate(2, 'sweep')">▶ Test</button>
+          </div>
+          <div class="cal-row">
+            <button class="btn-save" onclick="saveConfig(2)">💾 Save Config</button>
+            <button class="btn-fire" onclick="testFire(2)">🔥 Fire</button>
+          </div>
+        </div>
+      </div>
+      <div class="manual-status" id="cal-status"></div>
+    </div>
+
     <!-- ── Event Log ── -->
     <div class="panel log-panel">
       <div class="panel-header">

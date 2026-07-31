@@ -52,6 +52,12 @@ def cmd_reset(cfg: dict = None) -> bytes:
         "min2_us": s2.get("min_us", 500),
         "max2_us": s2.get("max_us", 2500),
     })
+def cmd_calibrate(servo_id: int, angle: int) -> bytes:
+    return _enc({"cmd": "CALIBRATE", "servo": servo_id, "angle": angle})
+
+def cmd_set_config(servo_id: int, home: int, sweep: int) -> bytes:
+    return _enc({"cmd": "SET_CONFIG", "servo": servo_id, "home": home, "sweep": sweep})
+
 def cmd_status() -> bytes: return _enc({"cmd": "STATUS"})
 
 

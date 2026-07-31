@@ -295,6 +295,37 @@ body {
 }
 .hw-dot.online { background: var(--green); box-shadow: 0 0 4px var(--green); }
 
+/* ═══════════ SERVO CALIBRATION ═══════════ */
+.calibrate-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.calibrate-card {
+  background: var(--bg-hover); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 14px;
+}
+.calibrate-card h3 { font-size: 12px; margin-bottom: 10px; color: var(--text-dim); }
+.cal-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.cal-row label { flex:1; font-size: 12px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+.cal-row input[type=number] {
+  width: 60px; background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text); padding: 4px 6px; border-radius: 4px; font-size: 12px;
+  font-family: inherit;
+}
+.btn-small {
+  padding: 4px 10px; font-size: 11px; background: var(--accent); color: #fff;
+  border: none; border-radius: 4px; cursor: pointer; font-family: inherit; font-weight: 600;
+}
+.btn-small:hover { opacity: .85; }
+.btn-save {
+  padding: 6px 14px; font-size: 11px; background: var(--green); color: #000;
+  border: none; border-radius: 4px; cursor: pointer; font-family: inherit; font-weight: 600;
+}
+.btn-fire {
+  padding: 6px 14px; font-size: 11px; background: var(--red); color: #fff;
+  border: none; border-radius: 4px; cursor: pointer; font-family: inherit; font-weight: 600;
+}
+.btn-save:hover, .btn-fire:hover { opacity: .85; transform: scale(1.03); }
+
 /* ═══════════ MANUAL SERVO ═══════════ */
 .manual-panel { margin-top: 4px; }
 .manual-btns {

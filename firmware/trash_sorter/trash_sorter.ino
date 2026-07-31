@@ -1,272 +1,314 @@
 /**
- * TrashSorter — Arduino Slave Firmware
- * ======================================
- * Nhận lệnh từ Raspberry Pi qua UART JSON, điều khiển:
- *   - 2 Servo (SG90) để gạt rác vào các ngăn
- *   - 2 IR Sensor (FC-51) phát hiện vật thể đi qua
- *   - Băng chuyền (continous rotation servo hoặc DC motor)
- *
- * Kết nối:
- *   RX (Arduino) ← TX (Raspberry Pi GPIO14)
- *   TX (Arduino) → RX (Raspberry Pi GPIO15)
- *   GND chung
- *
- * Servo:
- *   Servo 1 (Pin 9)  : Kim Loại (gạt trái)
- *   Servo 2 (Pin 10) : Nhựa (gạt trái) / Giấy (gạt phải)
- *
- * IR Sensors (interrupt):
- *   IR1 (Pin 2) : Trước Servo 1
- *   IR2 (Pin 3) : Trước Servo 2
- *
- * Băng chuyền:
- *   Motor PWM (Pin 5) : điều khiển tốc độ băng chuyền
+ * TrashSorter — Arduino Servo Firmware (SAFE)
+ * ==============================================
+ * Servo an toàn: thả lỏng (detach) khi idle.
+ * Chỉ attach khi cần gạt. Tốc độ chậm 15ms/độ.
+ * 
+ * Tính năng:
+ *   - SORT: gạt rác với tham số từ RPi
+ *   - CALIBRATE: test góc (attach → move → hold 1s → detach)
+ *   - SET_CONFIG: lưu cấu hình góc vào EEPROM (giả lập = RAM)
+ *   - PING, STATUS: heartbeat + debug
+ * 
+ * Protocol: JSON one-liner + '\n' @ 115200 baud
+ * 
+ * Lệnh mẫu:
+ *   {"cmd":"SORT","servo":1,"dir":"fire"}
+ *   {"cmd":"CALIBRATE","servo":1,"angle":90}
+ *   {"cmd":"SET_CONFIG","servo":1,"home":0,"sweep":90}
+ *   {"cmd":"PING"}
+ *   {"cmd":"STATUS"}
  */
 
 #include <Servo.h>
 #include <ArduinoJson.h>
 
-// ── Pin Definitions ─────────────────────────────────────────────────────────
-const int SERVO1_PIN     = 9;   // Servo 1: Kim Loại
-const int SERVO2_PIN     = 10;  // Servo 2: Nhựa + Giấy
-const int IR1_PIN        = 2;   // IR Sensor 1 (interrupt)
-const int IR2_PIN        = 3;   // IR Sensor 2 (interrupt)
-const int CONVEYOR_PWM   = 5;   // Băng chuyền PWM
-const int LED_STATUS     = 13;  // LED trạng thái (built-in)
+// ── Pin ────────────────────────────────────────────────────────────────────
+#define PIN_SERVO1      9
+#define PIN_SERVO2      10
+#define PIN_IR1         2
+#define PIN_IR2         3
+#define PIN_LED         13
 
-// ── Servo Angles ────────────────────────────────────────────────────────────
-const int SERVO1_NEUTRAL   = 90;
-const int SERVO1_LEFT      = 45;   // Kim Loại → trái
-const int SERVO1_RIGHT     = 135;  // Reject → phải
+// ── Timing ─────────────────────────────────────────────────────────────────
+#define SPEED_MS_PER_DEG 15     // 15ms cho mỗi độ (an toàn, không cháy)
+#define HOLD_AFTER_MS    500    // giữ sau khi tới góc
+#define DEBOUNCE_MS      20
 
-const int SERVO2_NEUTRAL   = 90;
-const int SERVO2_LEFT      = 50;   // Nhựa → trái
-const int SERVO2_RIGHT     = 130;  // Giấy → phải
-
-const int HOLD_MS          = 500;  // Thời gian giữ servo trước khi trả về neutral
-
-// ── Objects ─────────────────────────────────────────────────────────────────
+// ── Servo state ────────────────────────────────────────────────────────────
 Servo servo1, servo2;
 
-// ── IR Sensor State ─────────────────────────────────────────────────────────
-volatile bool ir1_triggered = false;
-volatile bool ir2_triggered = false;
-volatile unsigned long ir1_time = 0;
-volatile unsigned long ir2_time = 0;
-unsigned long last_debounce_ir1 = 0;
-unsigned long last_debounce_ir2 = 0;
-const unsigned long DEBOUNCE_MS = 20;
+// Cấu hình góc (có thể SET_CONFIG từ RPi)
+struct ServoConfig {
+  int home;   // góc nghỉ
+  int sweep;  // góc gạt
+};
+ServoConfig cfg1 = {0, 90};
+ServoConfig cfg2 = {0, 90};
 
-// ── System State ────────────────────────────────────────────────────────────
-unsigned long uptime_start = 0;
-bool conveyor_running = true;
-String last_error = "";
+// Trạng thái non-blocking
+enum Phase { IDLE, MOVING, HOLDING, RETURNING };
+Phase phase1 = IDLE, phase2 = IDLE;
+int   angle1 = 0, angle2 = 0;
+int   target1 = 0, target2 = 0;
+unsigned long nextStep1 = 0, nextStep2 = 0;
+unsigned long holdEnd1 = 0, holdEnd2 = 0;
+bool  servo1Attached = false, servo2Attached = false;
 
-// ── Setup ───────────────────────────────────────────────────────────────────
+// ── IR state ───────────────────────────────────────────────────────────────
+volatile bool ir1_pending = false;
+volatile bool ir2_pending = false;
+unsigned long last_ir1 = 0, last_ir2 = 0;
+unsigned long boot_ms = 0;
+
+// ── Serial buffer ──────────────────────────────────────────────────────────
+char   serial_buf[256];
+uint8_t buf_idx = 0;
+
+// ── Setup ──────────────────────────────────────────────────────────────────
 void setup() {
   Serial.begin(115200);
   while (!Serial) delay(10);
 
-  // Servos
-  servo1.attach(SERVO1_PIN);
-  servo2.attach(SERVO2_PIN);
-  servo1.write(SERVO1_NEUTRAL);
-  servo2.write(SERVO2_NEUTRAL);
+  pinMode(PIN_IR1, INPUT_PULLUP);
+  pinMode(PIN_IR2, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(PIN_IR1), isr_ir1, FALLING);
+  attachInterrupt(digitalPinToInterrupt(PIN_IR2), isr_ir2, FALLING);
 
-  // IR Sensors (interrupt)
-  pinMode(IR1_PIN, INPUT_PULLUP);
-  pinMode(IR2_PIN, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(IR1_PIN), ir1_isr, FALLING);
-  attachInterrupt(digitalPinToInterrupt(IR2_PIN), ir2_isr, FALLING);
+  pinMode(PIN_LED, OUTPUT);
+  digitalWrite(PIN_LED, LOW);
 
-  // Conveyor
-  pinMode(CONVEYOR_PWM, OUTPUT);
-  analogWrite(CONVEYOR_PWM, 180);  // ~70% speed
+  boot_ms = millis();
 
-  // Status LED
-  pinMode(LED_STATUS, OUTPUT);
-  digitalWrite(LED_STATUS, HIGH);
-
-  uptime_start = millis();
-
-  // Hello message
-  StaticJsonDocument<128> doc;
-  doc["ack"] = "READY";
-  doc["firmware"] = "TrashSorter v1.0";
-  doc["uptime_s"] = 0;
+  // Servo KHÔNG attach ở setup — thả lỏng hoàn toàn
+  StaticJsonDocument<64> doc;
+  doc["boot"]     = "ok";
+  doc["firmware"] = "TrashSorter-SAFE-v4.0";
   serializeJson(doc, Serial);
   Serial.println();
 }
 
-// ── Loop ────────────────────────────────────────────────────────────────────
+// ── ISRs ───────────────────────────────────────────────────────────────────
+void isr_ir1() { ir1_pending = true; }
+void isr_ir2() { ir2_pending = true; }
+
+// ── Loop ───────────────────────────────────────────────────────────────────
 void loop() {
-  // ── Process incoming commands ──────────────────────────────────────────
-  if (Serial.available()) {
-    String raw = Serial.readStringUntil('\n');
-    raw.trim();
-    if (raw.length() > 0) {
-      processCommand(raw);
+  uint32_t now = millis();
+
+  // ── Servo 1 state machine ─────────────────────────────────────────────
+  if (servo1Attached) {
+    if (phase1 == MOVING && now >= nextStep1) {
+      if (angle1 < target1) { angle1++; servo1.write(angle1); }
+      else if (angle1 > target1) { angle1--; servo1.write(angle1); }
+      else { phase1 = HOLDING; holdEnd1 = now + HOLD_AFTER_MS; }
+      nextStep1 = now + SPEED_MS_PER_DEG;
+    }
+    else if (phase1 == HOLDING && now >= holdEnd1) {
+      // Trở về home
+      target1 = cfg1.home;
+      phase1 = RETURNING;
+    }
+    else if (phase1 == RETURNING && now >= nextStep1) {
+      if (angle1 < target1) { angle1++; servo1.write(angle1); }
+      else if (angle1 > target1) { angle1--; servo1.write(angle1); }
+      else {
+        // Về tới home → detach, thả lỏng!
+        servo1.detach();
+        servo1Attached = false;
+        phase1 = IDLE;
+        digitalWrite(PIN_LED, (servo2Attached) ? HIGH : LOW);
+      }
+      nextStep1 = now + SPEED_MS_PER_DEG;
     }
   }
 
-  // ── Check IR triggers ──────────────────────────────────────────────────
-  if (ir1_triggered) {
-    unsigned long now = millis();
-    if ((now - last_debounce_ir1) > DEBOUNCE_MS) {
-      sendIRTrigger(1, ir1_time);
-      last_debounce_ir1 = now;
+  // ── Servo 2 state machine ─────────────────────────────────────────────
+  if (servo2Attached) {
+    if (phase2 == MOVING && now >= nextStep2) {
+      if (angle2 < target2) { angle2++; servo2.write(angle2); }
+      else if (angle2 > target2) { angle2--; servo2.write(angle2); }
+      else { phase2 = HOLDING; holdEnd2 = now + HOLD_AFTER_MS; }
+      nextStep2 = now + SPEED_MS_PER_DEG;
     }
-    ir1_triggered = false;
-  }
-
-  if (ir2_triggered) {
-    unsigned long now = millis();
-    if ((now - last_debounce_ir2) > DEBOUNCE_MS) {
-      sendIRTrigger(2, ir2_time);
-      last_debounce_ir2 = now;
+    else if (phase2 == HOLDING && now >= holdEnd2) {
+      target2 = cfg2.home;
+      phase2 = RETURNING;
     }
-    ir2_triggered = false;
+    else if (phase2 == RETURNING && now >= nextStep2) {
+      if (angle2 < target2) { angle2++; servo2.write(angle2); }
+      else if (angle2 > target2) { angle2--; servo2.write(angle2); }
+      else {
+        servo2.detach();
+        servo2Attached = false;
+        phase2 = IDLE;
+        digitalWrite(PIN_LED, (servo1Attached) ? HIGH : LOW);
+      }
+      nextStep2 = now + SPEED_MS_PER_DEG;
+    }
   }
 
-  // ── Heartbeat LED ──────────────────────────────────────────────────────
-  static unsigned long last_blink = 0;
-  if (millis() - last_blink > 1000) {
-    digitalWrite(LED_STATUS, !digitalRead(LED_STATUS));
-    last_blink = millis();
+  // ── IR sensors ────────────────────────────────────────────────────────
+  if (ir1_pending && (now - last_ir1) >= DEBOUNCE_MS) {
+    noInterrupts(); ir1_pending = false; interrupts();
+    if (digitalRead(PIN_IR1) == LOW && (now - boot_ms) > 1000) {
+      last_ir1 = now;
+      StaticJsonDocument<64> doc;
+      doc["ack"] = "IR_TRIGGER"; doc["sensor"] = 1; doc["ts"] = now;
+      serializeJson(doc, Serial); Serial.println();
+    }
+  }
+  if (ir2_pending && (now - last_ir2) >= DEBOUNCE_MS) {
+    noInterrupts(); ir2_pending = false; interrupts();
+    if (digitalRead(PIN_IR2) == LOW && (now - boot_ms) > 1000) {
+      last_ir2 = now;
+      StaticJsonDocument<64> doc;
+      doc["ack"] = "IR_TRIGGER"; doc["sensor"] = 2; doc["ts"] = now;
+      serializeJson(doc, Serial); Serial.println();
+    }
+  }
+
+  // ── Serial commands ───────────────────────────────────────────────────
+  while (Serial.available() > 0) {
+    char c = Serial.read();
+    if (c == '\n' || c == '\r') {
+      if (buf_idx > 0) { serial_buf[buf_idx] = '\0'; process(serial_buf); buf_idx = 0; }
+    } else if (buf_idx < sizeof(serial_buf) - 1) {
+      serial_buf[buf_idx++] = c;
+    }
   }
 }
 
-// ── IR Interrupt Handlers ──────────────────────────────────────────────────
-void ir1_isr() {
-  ir1_triggered = true;
-  ir1_time = micros();
-}
-
-void ir2_isr() {
-  ir2_triggered = true;
-  ir2_time = micros();
-}
-
-// ── Send IR Trigger ────────────────────────────────────────────────────────
-void sendIRTrigger(int sensor, unsigned long ts_us) {
-  StaticJsonDocument<128> doc;
-  doc["ack"] = "IR_TRIGGER";
-  doc["sensor"] = sensor;
-  doc["ts"] = ts_us;
-  serializeJson(doc, Serial);
-  Serial.println();
-}
-
-// ── Command Processor ───────────────────────────────────────────────────────
-void processCommand(String raw) {
+// ── Command processor ──────────────────────────────────────────────────────
+void process(const char* raw) {
   StaticJsonDocument<256> doc;
   DeserializationError err = deserializeJson(doc, raw);
+  if (err) { sendError("json_parse"); return; }
 
-  if (err) {
-    sendError("JSON parse error: " + String(err.c_str()));
-    return;
-  }
+  const char* cmd = doc["cmd"] | "";
 
-  String cmd = doc["cmd"] | "";
+  if (strcmp(cmd, "SORT") == 0) {
+    int id = doc["servo"] | 1;
+    fireServo(id);
 
-  if (cmd == "SORT") {
-    int servo_id   = doc["servo"] | 0;
-    String dir     = doc["dir"] | "left";
+  } else if (strcmp(cmd, "CALIBRATE") == 0) {
+    int id    = doc["servo"] | 1;
+    int angle = doc["angle"] | 0;
+    calibrateServo(id, angle);
 
-    doSort(servo_id, dir);
-
-  } else if (cmd == "PING") {
+  } else if (strcmp(cmd, "SET_CONFIG") == 0) {
+    int id    = doc["servo"] | 1;
+    int home  = doc["home"] | -1;
+    int sweep = doc["sweep"] | -1;
+    if (id == 1) {
+      if (home  >= 0) cfg1.home  = home;
+      if (sweep >= 0) cfg1.sweep = sweep;
+    } else {
+      if (home  >= 0) cfg2.home  = home;
+      if (sweep >= 0) cfg2.sweep = sweep;
+    }
     StaticJsonDocument<128> resp;
-    resp["ack"] = "PONG";
-    resp["uptime_s"] = (millis() - uptime_start) / 1000;
-    serializeJson(resp, Serial);
-    Serial.println();
+    resp["ack"] = "CONFIG_OK";
+    resp["servo"] = id;
+    resp["home"]  = (id==1) ? cfg1.home  : cfg2.home;
+    resp["sweep"] = (id==1) ? cfg1.sweep : cfg2.sweep;
+    serializeJson(resp, Serial); Serial.println();
 
-  } else if (cmd == "RESET") {
-    servo1.write(SERVO1_NEUTRAL);
-    servo2.write(SERVO2_NEUTRAL);
-    conveyor_running = true;
-    analogWrite(CONVEYOR_PWM, 180);
-    last_error = "";
+  } else if (strcmp(cmd, "PING") == 0) {
     StaticJsonDocument<64> resp;
-    resp["ack"] = "RESET_DONE";
-    serializeJson(resp, Serial);
-    Serial.println();
+    resp["ack"] = "PONG";
+    resp["uptime_s"] = (millis() - boot_ms) / 1000;
+    serializeJson(resp, Serial); Serial.println();
 
-  } else if (cmd == "STATUS") {
+  } else if (strcmp(cmd, "STATUS") == 0) {
     StaticJsonDocument<256> resp;
     resp["ack"] = "STATUS";
-    resp["uptime_s"] = (millis() - uptime_start) / 1000;
-    resp["conveyor"] = conveyor_running ? "ON" : "OFF";
-    resp["servo1_angle"] = servo1.read();
-    resp["servo2_angle"] = servo2.read();
-    resp["error"] = last_error;
-    serializeJson(resp, Serial);
-    Serial.println();
-
-  } else if (cmd == "CONVEYOR") {
-    String state = doc["state"] | "ON";
-    if (state == "ON") {
-      analogWrite(CONVEYOR_PWM, 180);
-      conveyor_running = true;
-    } else {
-      analogWrite(CONVEYOR_PWM, 0);
-      conveyor_running = false;
-    }
-    StaticJsonDocument<64> resp;
-    resp["ack"] = "CONVEYOR_" + state;
-    serializeJson(resp, Serial);
-    Serial.println();
+    resp["servo1_attached"] = servo1Attached;
+    resp["servo2_attached"] = servo2Attached;
+    resp["servo1_phase"] = (int)phase1;
+    resp["servo2_phase"] = (int)phase2;
+    resp["servo1_angle"] = angle1;
+    resp["servo2_angle"] = angle2;
+    resp["cfg1_home"]  = cfg1.home;
+    resp["cfg1_sweep"] = cfg1.sweep;
+    resp["cfg2_home"]  = cfg2.home;
+    resp["cfg2_sweep"] = cfg2.sweep;
+    resp["uptime_s"] = (millis() - boot_ms) / 1000;
+    serializeJson(resp, Serial); Serial.println();
 
   } else {
-    sendError("Unknown command: " + cmd);
+    sendError("unknown_cmd");
   }
 }
 
-// ── Servo Dispatch ──────────────────────────────────────────────────────────
-void doSort(int servo_id, String direction) {
-  unsigned long start_ms = millis();
-  Servo* s = nullptr;
-  int neutral = 0, angle = 0;
+// ── Servo actions ──────────────────────────────────────────────────────────
 
-  if (servo_id == 1) {
-    s = &servo1;
-    neutral = SERVO1_NEUTRAL;
-    angle = (direction == "left") ? SERVO1_LEFT : SERVO1_RIGHT;
-  } else if (servo_id == 2) {
-    s = &servo2;
-    neutral = SERVO2_NEUTRAL;
-    angle = (direction == "left") ? SERVO2_LEFT : SERVO2_RIGHT;
-  } else {
-    sendError("Invalid servo: " + String(servo_id));
-    return;
+void fireServo(int id) {
+  ServoConfig& cfg = (id == 1) ? cfg1 : cfg2;
+  Servo& srv = (id == 1) ? servo1 : servo2;
+  bool& attached = (id == 1) ? servo1Attached : servo2Attached;
+  Phase& phase = (id == 1) ? phase1 : phase2;
+  int& angle = (id == 1) ? angle1 : angle2;
+  int& target = (id == 1) ? target1 : target2;
+  unsigned long& next = (id == 1) ? nextStep1 : nextStep2;
+
+  // Attach nếu chưa
+  if (!attached) {
+    srv.attach((id == 1) ? PIN_SERVO1 : PIN_SERVO2);
+    attached = true;
+    angle = cfg.home;
+    srv.write(angle);
+    delay(50); // chờ servo ổn định
   }
 
-  // Gạt
-  s->write(angle);
-  delay(HOLD_MS);
-
-  // Trả về neutral
-  s->write(neutral);
-
-  unsigned long elapsed = millis() - start_ms;
+  target = cfg.sweep;
+  phase = MOVING;
+  next = millis() + SPEED_MS_PER_DEG;
+  digitalWrite(PIN_LED, HIGH);
 
   // Ack
   StaticJsonDocument<128> resp;
-  resp["ack"] = "SORT_DONE";
-  resp["servo"] = servo_id;
-  resp["dir"] = direction;
-  resp["ms"] = elapsed;
-  serializeJson(resp, Serial);
-  Serial.println();
+  resp["ack"] = "SORT_START";
+  resp["servo"] = id;
+  resp["from"] = cfg.home;
+  resp["to"] = cfg.sweep;
+  serializeJson(resp, Serial); Serial.println();
 }
 
-// ── Error Reporter ──────────────────────────────────────────────────────────
-void sendError(String msg) {
-  last_error = msg;
-  StaticJsonDocument<256> doc;
-  doc["ack"] = "ERROR";
-  doc["msg"] = msg;
-  serializeJson(doc, Serial);
-  Serial.println();
+void calibrateServo(int id, int testAngle) {
+  Servo& srv = (id == 1) ? servo1 : servo2;
+  bool& attached = (id == 1) ? servo1Attached : servo2Attached;
+
+  // Attach tạm thời
+  srv.attach((id == 1) ? PIN_SERVO1 : PIN_SERVO2);
+  attached = true;
+
+  // Di chuyển từ từ đến góc test
+  int startAngle = (id == 1) ? angle1 : angle2;
+  int step = (testAngle > startAngle) ? 1 : -1;
+  for (int a = startAngle; a != testAngle; a += step) {
+    srv.write(a);
+    delay(SPEED_MS_PER_DEG);
+  }
+  srv.write(testAngle);
+  delay(1000); // giữ 1 giây để người dùng quan sát
+
+  // Detach — thả lỏng!
+  srv.detach();
+  attached = false;
+  if (id == 1) { phase1 = IDLE; angle1 = testAngle; }
+  else         { phase2 = IDLE; angle2 = testAngle; }
+  digitalWrite(PIN_LED, LOW);
+
+  StaticJsonDocument<64> resp;
+  resp["ack"] = "CALIBRATE_DONE";
+  resp["servo"] = id;
+  resp["angle"] = testAngle;
+  serializeJson(resp, Serial); Serial.println();
+}
+
+void sendError(const char* msg) {
+  StaticJsonDocument<64> doc;
+  doc["ack"] = "ERROR"; doc["msg"] = msg;
+  serializeJson(doc, Serial); Serial.println();
 }
