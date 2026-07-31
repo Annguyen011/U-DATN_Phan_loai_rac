@@ -15,9 +15,11 @@ Routes:
 
 from __future__ import annotations
 
+import json
 import logging
 import threading
 import time
+from pathlib import Path
 
 from flask import Flask, Response, jsonify, render_template, request
 from flask_socketio import SocketIO
@@ -156,17 +158,38 @@ def create_flask_app(cfg: dict, store, stop_event: threading.Event) -> tuple[Fla
 
     @app.route("/api/servo/config", methods=["POST"])
     def servo_set_config():
-        """Lưu cấu hình góc home + sweep cho servo."""
+        """Lưu cấu hình góc home + sweep cho servo (Arduino + file JSON)."""
         data = request.get_json() or {}
         servo_id = data.get("servo", 1)
         home = data.get("home", 0)
         sweep = data.get("sweep", 90)
+        label = data.get("label", f"Servo {servo_id}")
 
         if _serial_ref:
             from shared.serial_protocol import cmd_set_config
             _serial_ref.send(cmd_set_config(servo_id, home, sweep))
-            return jsonify({"ok": True, "servo": servo_id, "home": home, "sweep": sweep})
-        return jsonify({"ok": False, "msg": "No serial link"}), 503
+
+        # Save to JSON file for persistence
+        config_path = Path("data/servo_config.json")
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_data = {}
+        if config_path.exists():
+            try: config_data = json.loads(config_path.read_text())
+            except: pass
+        key = f"servo{servo_id}"
+        config_data[key] = {"home": home, "sweep": sweep, "label": label, "ts": time.time()}
+        config_path.write_text(json.dumps(config_data, indent=2, ensure_ascii=False))
+
+        return jsonify({"ok": True, "servo": servo_id, "home": home, "sweep": sweep})
+
+    @app.route("/api/servo/config", methods=["GET"])
+    def servo_get_config():
+        """Đọc cấu hình servo đã lưu từ file JSON."""
+        config_path = Path("data/servo_config.json")
+        if config_path.exists():
+            try: return jsonify(json.loads(config_path.read_text()))
+            except: pass
+        return jsonify({})
 
     @app.route("/api/servo/manual", methods=["POST"])
     def servo_manual():

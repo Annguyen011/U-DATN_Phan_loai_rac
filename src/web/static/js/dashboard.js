@@ -227,6 +227,24 @@ function addLogRow(e) {
 }
 
 /* ── Servo Calibration ──────────────────────────────────────────────────── */
+// Tự động load config đã lưu khi mở trang
+(async function loadServoConfig() {
+  try {
+    const r = await fetch('/api/servo/config');
+    if (r.ok) {
+      const d = await r.json();
+      if (d.servo1) {
+        document.getElementById('s1-home').value = d.servo1.home || 0;
+        document.getElementById('s1-sweep').value = d.servo1.sweep || 90;
+      }
+      if (d.servo2) {
+        document.getElementById('s2-home').value = d.servo2.home || 0;
+        document.getElementById('s2-sweep').value = d.servo2.sweep || 90;
+      }
+    }
+  } catch(_) {}
+})();
+
 async function testCalibrate(servoId, type) {
   const prefix = `s${servoId}-${type}`;
   const angle = parseInt(document.getElementById(prefix).value) || 0;
