@@ -56,11 +56,6 @@
           <span class="counter-name">Giấy</span>
           <span class="counter-val" id="sb-paper">0</span>
         </div>
-        <div class="counter-item other">
-          <span class="counter-dot"></span>
-          <span class="counter-name">Ko Phải Rác</span>
-          <span class="counter-val" id="sb-other">0</span>
-        </div>
         <div class="counter-item reject" style="margin-top:12px;padding-top:10px;border-top:1px solid #1e1e2e">
           <span class="counter-dot"></span>
           <span class="counter-name">Rejects</span>
@@ -199,7 +194,6 @@
             <div class="legend-row"><span class="legend-dot" style="background:#6b7280"></span> Kim Loại <span id="pct-metal">0%</span></div>
             <div class="legend-row"><span class="legend-dot" style="background:#f59e0b"></span> Nhựa <span id="pct-plastic">0%</span></div>
             <div class="legend-row"><span class="legend-dot" style="background:#06b6d4"></span> Giấy <span id="pct-paper">0%</span></div>
-            <div class="legend-row"><span class="legend-dot" style="background:#8b5cf6"></span> Ko Phải Rác <span id="pct-other">0%</span></div>
           </div>
         </div>
       </div>
@@ -214,7 +208,6 @@
         <button class="btn-manual metal" onclick="triggerServo('KIM_LOAI')">🪙 Kim Loại</button>
         <button class="btn-manual plastic" onclick="triggerServo('NHUA')">🧴 Nhựa</button>
         <button class="btn-manual paper" onclick="triggerServo('GIAY')">📄 Giấy</button>
-        <button class="btn-manual other" onclick="triggerServo('KHONG_PHAI_RAC')">🚫 Ko Phải Rác</button>
       </div>
       <div class="manual-status" id="manual-status"></div>
     </div>
