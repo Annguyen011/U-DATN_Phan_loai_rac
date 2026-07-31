@@ -1,0 +1,73 @@
+{
+  "events": [
+    {
+      "ts": 1785458541918.784,
+      "type": "GIAY",
+      "conf": 1.0,
+      "action": "MANUAL_SERVO2_RIGHT",
+      "station": 0,
+      "reject": false
+    },
+    {
+      "ts": 1785458541920.3782,
+      "type": "GIAY",
+      "conf": 1.0,
+      "action": "MANUAL_SERVO2_RIGHT",
+      "station": 0,
+      "reject": false
+    },
+    {
+      "ts": 1785458544651.9336,
+      "type": "NHUA",
+      "conf": 1.0,
+      "action": "MANUAL_SERVO2_LEFT",
+      "station": 0,
+      "reject": false
+    },
+    {
+      "ts": 1785458546273.475,
+      "type": "KIM_LOAI",
+      "conf": 1.0,
+      "action": "MANUAL_SERVO1_LEFT",
+      "station": 0,
+      "reject": false
+    },
+    {
+      "ts": 1785458551246.781,
+      "type": "KIM_LOAI",
+      "conf": 1.0,
+      "action": "MANUAL_SERVO1_LEFT",
+      "station": 0,
+      "reject": false
+    },
+    {
+      "ts": 1785458554494.555,
+      "type": "NHUA",
+      "conf": 1.0,
+      "action": "MANUAL_SERVO2_LEFT",
+      "station": 0,
+      "reject": false
+    },
+    {
+      "ts": 1785458556076.334,
+      "type": "GIAY",
+      "conf": 1.0,
+      "action": "MANUAL_SERVO2_RIGHT",
+      "station": 0,
+      "reject": false
+    }
+  ],
+  "daily": {
+    "2026-07-31": {
+      "GIAY": 195,
+      "total": 452,
+      "NHUA": 128,
+      "KIM_LOAI": 129
+    }
+  },
+  "summary": {
+    "GIAY": 3,
+    "NHUA": 2,
+    "KIM_LOAI": 2
+  }
+}
