@@ -289,16 +289,32 @@ async function saveConfig(servoId) {
 
 async function testFire(servoId) {
   const status = document.getElementById('cal-status');
-  status.textContent = `Firing Servo ${servoId}...`;
+  
+  // Lưu config trước khi fire để dùng đúng góc hiện tại
+  const home  = parseInt(document.getElementById(`s${servoId}-home`).value) || 0;
+  const sweep = parseInt(document.getElementById(`s${servoId}-sweep`).value) || 90;
+  
+  status.textContent = `Saving + Firing Servo ${servoId}...`;
   status.className = 'manual-status sending';
+  
   try {
+    // Bước 1: Lưu config
+    await fetch('/api/servo/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({servo: servoId, home: home, sweep: sweep})
+    });
+    // Đợi 100ms cho Arduino nhận lệnh
+    await new Promise(r => setTimeout(r, 100));
+    
+    // Bước 2: Fire
     const r = await fetch('/api/servo/manual', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({type: (servoId===1)?'KIM_LOAI':'NHUA'})
     });
     const d = await r.json();
-    status.textContent = d.ok ? `✅ Servo ${d.servo} fired!` : `❌ ${d.msg}`;
+    status.textContent = d.ok ? `✅ Servo ${d.servo} fired! (home=${home}° sweep=${sweep}°)` : `❌ ${d.msg}`;
     status.className = 'manual-status ' + (d.ok ? 'ok' : 'error');
   } catch(e) {
     status.textContent = '❌ Connection error';
