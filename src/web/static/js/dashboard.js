@@ -3,7 +3,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 'use strict';
 
-const CIRC = 2 * Math.PI * 54;  // donut radius
+const CIRC = 2 * Math.PI * 54;
 let prev = { KIM_LOAI:0, NHUA:0, GIAY:0, KHONG_PHAI_RAC:0, rejects:0 };
 let eventCount = 0;
 const $ = id => document.getElementById(id);
@@ -30,6 +30,25 @@ socket.on('disconnect', () => {
 socket.on('stats_update', data => renderStats(data));
 socket.on('sort_event',   evt  => addLogRow(evt));
 socket.on('detection',    det  => showDetect(det.label, det.confidence));
+
+/* ── Arduino Status Poll ───────────────────────────────────────────────── */
+setInterval(async () => {
+  try {
+    const r = await fetch('/api/arduino/status', { signal: AbortSignal.timeout(2000) });
+    if (r.ok) {
+      const d = await r.json();
+      $('arduino-dot').className = 'hw-dot' + (d.online ? ' online' : '');
+      $('arduino-label').textContent = d.online ? 'Online ✅' : 'Offline ❌';
+      $('servo1-dot').className = 'hw-dot' + (d.online ? ' online' : '');
+      $('servo1-label').textContent = d.online ? 'Ready' : '—';
+      $('servo2-dot').className = 'hw-dot' + (d.online ? ' online' : '');
+      $('servo2-label').textContent = d.online ? 'Ready' : '—';
+    }
+  } catch(_) {
+    $('arduino-dot').className = 'hw-dot';
+    $('arduino-label').textContent = '—';
+  }
+}, 3000);
 
 /* ── Bootstrap data ───────────────────────────────────────────────────── */
 async function loadBootstrap() {
@@ -60,7 +79,6 @@ async function loadBootstrap() {
   } catch(_) {}
 }
 
-/* ── Render Stats ─────────────────────────────────────────────────────── */
 function renderStats(data) {
   const kl  = data.KIM_LOAI       || 0;
   const nh  = data.NHUA           || 0;
@@ -106,7 +124,6 @@ function setCard(valId, val, subId, prevVal) {
   sub.className = 'stat-sub' + (diff > 0 ? ' up' : '');
 }
 
-/* ── Donut Chart ──────────────────────────────────────────────────────── */
 function renderDonut(kl, nh, gi, kpr, tot) {
   const total = tot || 1;
   const klArc  = (kl/total)  * CIRC;
@@ -132,9 +149,7 @@ function setArc(id, arc, offset) {
   el.setAttribute('stroke-dashoffset', (-offset).toFixed(2));
 }
 
-/* ── Camera ───────────────────────────────────────────────────────────── */
 let _camOnline = false;
-
 function setCamStatus(online) {
   if (online === _camOnline) return;
   _camOnline = online;
@@ -163,9 +178,7 @@ function handleCamError() {
     .catch(() => setCamStatus(false));
 }
 
-/* ── Detection Overlay ────────────────────────────────────────────────── */
 let _detTimer = null;
-
 function showDetect(label, confidence) {
   const overlay = $('detect-overlay');
   const labelEl = $('detect-label');
@@ -187,7 +200,6 @@ function showDetect(label, confidence) {
   }, 2000);
 }
 
-/* ── Event Log ────────────────────────────────────────────────────────── */
 function addLogRow(e) {
   const body = $('event-log');
   if (body.children.length >= 200) body.lastElementChild?.remove();
@@ -215,7 +227,6 @@ function addLogRow(e) {
   if (!e.is_reject) showDetect(trash, e.confidence);
 }
 
-/* ── Manual Servo ──────────────────────────────────────────────────────── */
 async function triggerServo(type) {
   const status = $('manual-status');
   status.textContent = 'Sending...';

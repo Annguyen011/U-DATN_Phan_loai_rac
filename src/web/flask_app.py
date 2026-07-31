@@ -130,6 +130,17 @@ def create_flask_app(cfg: dict, store, stop_event: threading.Event) -> tuple[Fla
     def stats_hourly():
         return jsonify(_store.hourly_breakdown())
 
+    @app.route("/api/arduino/status")
+    def arduino_status():
+        """Trả về trạng thái kết nối Arduino + servo."""
+        online = bool(_serial_ref and _serial_ref.is_connected)
+        return jsonify({
+            "online": online,
+            "servo1": _servo_cfg.get("servo1", {}).get("home_angle", 0),
+            "servo2": _servo_cfg.get("servo2", {}).get("home_angle", 0),
+            "ts": time.time(),
+        })
+
     @app.route("/api/servo/manual", methods=["POST"])
     def servo_manual():
         """Trigger servo manually from dashboard button."""
