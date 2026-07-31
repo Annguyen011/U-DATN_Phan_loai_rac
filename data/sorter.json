@@ -55,19 +55,27 @@
       "action": "MANUAL_SERVO2_RIGHT",
       "station": 0,
       "reject": false
+    },
+    {
+      "ts": 1785458975246.5833,
+      "type": "NHUA",
+      "conf": 1.0,
+      "action": "MANUAL_SERVO2_LEFT",
+      "station": 0,
+      "reject": false
     }
   ],
   "daily": {
     "2026-07-31": {
-      "GIAY": 195,
-      "total": 452,
-      "NHUA": 128,
-      "KIM_LOAI": 129
+      "GIAY": 768,
+      "total": 1973,
+      "NHUA": 694,
+      "KIM_LOAI": 511
     }
   },
   "summary": {
     "GIAY": 3,
-    "NHUA": 2,
+    "NHUA": 3,
     "KIM_LOAI": 2
   }
 }
