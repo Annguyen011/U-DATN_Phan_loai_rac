@@ -135,6 +135,15 @@ class FruitDetector(threading.Thread):
         self._last_detect_time = 0.0
         self._detect_cooldown = 2.5  # giây giữa 2 detection
 
+        # Tracking: gạt servo khi vật BIẾN MẤT khỏi camera (đã đi qua)
+        self._has_object = False        # đang có vật trong camera
+        self._last_bbox = None          # bbox cuối cùng để vẽ
+        self._last_conf = 0.0
+        self._missing_frames = 0        # số frame không thấy vật
+        self._exit_threshold = 5        # vật biến mất 5 frame → coi là đã qua
+        # Màu bbox từ config
+        self._colors = {k: tuple(v) for k, v in cfg["model"].get("label_colors", {}).items()}
+
     def run(self) -> None:
         self._load_model()
         cap     = self._open_camera()
@@ -161,47 +170,86 @@ class FruitDetector(threading.Thread):
             self._frame_id += 1
             self._skip_counter += 1
 
-            # ── Push JPEG frame lên /video_feed ──────────────────────────
-            _, jpeg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 70])
-            push_frame(jpeg.tobytes())
-
-            # Frame skip: chỉ chạy NCNN mỗi _skip_n frame
+            # ── Inference ────────────────────────────────────────────────
             if self._skip_counter >= self._skip_n:
                 self._skip_counter = 0
                 self._last_dets = self._run_inference(frame)
 
-            # ── Stability filter: chỉ push khi vật xuất hiện N frame liên tiếp ─
+            # ── Object tracking + vẽ bbox ────────────────────────────────
             best = None
             if self._last_dets:
-                best = max(self._last_dets, key=lambda d: d["confidence"])
-                best_label = best["label"]
-                if best_label == self._track_label:
-                    self._track_count += 1
+                # Lọc bỏ KHONG_PHAI_RAC (băng trống)
+                real_dets = [d for d in self._last_dets if d.get("label") != "KHONG_PHAI_RAC"]
+                if real_dets:
+                    best = max(real_dets, key=lambda d: d["confidence"])
+                    best_label = best["label"]
+                    if best_label == self._track_label:
+                        self._track_count += 1
+                    else:
+                        self._track_label = best_label
+                        self._track_count = 1
+                        self._track_sent = False
+                    # Cập nhật bbox + confidence để vẽ
+                    self._last_bbox = best.get("bbox")
+                    self._last_conf = best["confidence"]
+                    self._missing_frames = 0
                 else:
-                    self._track_label = best_label
-                    self._track_count = 1
-                    self._track_sent = False
+                    self._missing_frames += 1
             else:
-                # Không detect gì → reset tracker
+                self._missing_frames += 1
+
+            # ── Vẽ bounding box lên frame ────────────────────────────────
+            display = frame.copy()
+            if self._has_object and self._last_bbox is not None:
+                x0, y0, w, h = self._last_bbox
+                color = self._colors.get(self._track_label, (0, 255, 0))
+                cv2.rectangle(display, (x0, y0), (x0 + w, y0 + h), color, 2)
+                label_text = f"{self._track_label} {self._last_conf:.0%}"
+                cv2.putText(display, label_text, (x0, max(20, y0 - 8)),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2)
+
+            # ── Push JPEG frame có bbox lên /video_feed ──────────────────
+            _, jpeg = cv2.imencode(".jpg", display, [cv2.IMWRITE_JPEG_QUALITY, 70])
+            push_frame(jpeg.tobytes())
+
+            # ── Trigger khi vật đã ổn định (đủ N frames) ─────────────────
+            if (best and self._track_count >= self._stable_frames
+                    and not self._has_object
+                    and best.get("label") != "KHONG_PHAI_RAC"):
+                self._has_object = True
+                self._track_sent = True
+                self._last_detect_time = time.monotonic()
+                push_detection_event(best["label"], best["confidence"])
+                log.info(
+                    "Object entered: %s conf=%.2f after %d frames",
+                    best["label"], best["confidence"], self._track_count
+                )
+
+            # ── Trigger khi vật ĐÃ ĐI QUA (biến mất khỏi camera) ─────────
+            if (self._has_object and self._missing_frames >= self._exit_threshold
+                    and (time.monotonic() - self._last_detect_time) > self._detect_cooldown):
+                # Vật đã qua → gửi lệnh SORT đến SortController/queue
+                last_label = self._track_label or "UNKNOWN"
+                result = DetectionResult(
+                    trash_type=TrashType(last_label) if last_label in TrashType.__members__ else TrashType.UNKNOWN,
+                    confidence=self._last_conf,
+                    frame_id=self._frame_id,
+                    bbox=self._last_bbox or (0, 0, 0, 0),
+                    action=self._resolve_action_for(last_label),
+                )
+                with self.lock:
+                    self.queue.append(result)
+                push_detection_event(last_label, self._last_conf)
+                log.info("Object EXITED: %s → sending SORT", last_label)
+
+                # Reset tracking
+                self._has_object = False
                 self._track_label = None
                 self._track_count = 0
                 self._track_sent = False
-
-            if (best and self._track_count >= self._stable_frames
-                    and not self._track_sent
-                    and (time.monotonic() - self._last_detect_time) > self._detect_cooldown
-                    and best.get("label") != "KHONG_PHAI_RAC"):
-                self._track_sent = True
+                self._last_bbox = None
+                self._missing_frames = 0
                 self._last_detect_time = time.monotonic()
-                result = self._build_result(best)
-                if result:
-                    with self.lock:
-                        self.queue.append(result)
-                    push_detection_event(best["label"], best["confidence"])
-                    log.info(
-                        "Stable detection: %s conf=%.2f after %d frames",
-                        best["label"], best["confidence"], self._track_count
-                    )
 
             elapsed = time.monotonic() - t0
             cycle_times.append(elapsed)
@@ -336,6 +384,11 @@ class FruitDetector(threading.Thread):
             bbox=det["bbox"],
             action=action,
         )
+
+    def _resolve_action_for(self, label: str) -> SortAction:
+        """Giải quyết action từ label (dùng khi vật exit)."""
+        route = self._routing.get(label, self._routing.get("UNKNOWN", {}))
+        return _resolve_action(route)
 
     def _simulate(self) -> list[dict]:
         import random
